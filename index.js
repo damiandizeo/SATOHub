@@ -1,33 +1,35 @@
 "use strict";
 
-var _express = _interopRequireDefault(require("express"));
-
-var _helmet = _interopRequireDefault(require("helmet"));
-
-var _bodyParser = _interopRequireDefault(require("body-parser"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 /* modules */
+const express = require('express');
 
+const helmet = require('helmet');
+
+const bodyParser = require('body-parser');
 /* node js */
+
+
 process.on('uncaughtException', function (err) {
   console.error(err);
   console.log('Node NOT Exiting...');
 });
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 process.env.GRPC_SSL_CIPHER_SUITES = 'HIGH+ECDSA';
+/* controllers */
+
+const api = require('./controllers/api');
 /* app */
 
-let app = (0, _express.default)();
+
+let app = express();
 app.enable('trust proxy');
-app.use(_helmet.default.hsts());
-app.use(_helmet.default.hidePoweredBy());
-app.use(_bodyParser.default.urlencoded({
+app.use(helmet.hsts());
+app.use(helmet.hidePoweredBy());
+app.use(bodyParser.urlencoded({
   extended: false
 }));
-app.use(_bodyParser.default.json(null));
-app.use(require('./controllers/api'));
+app.use(bodyParser.json(null));
+app.use(api);
 /* server */
 
 const bindHost = process.env.HOST || '0.0.0.0';

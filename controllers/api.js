@@ -1,28 +1,26 @@
 "use strict";
 
-var _express = _interopRequireDefault(require("express"));
-
-var _expressRateLimit = _interopRequireDefault(require("express-rate-limit"));
-
-var _ioredis = _interopRequireDefault(require("ioredis"));
-
-var _crypto = _interopRequireDefault(require("crypto"));
-
-var _config = _interopRequireDefault(require("../config"));
-
 var _managers = require("../managers");
 
-var _lightning = _interopRequireDefault(require("../lightning"));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 /* modules */
+const express = require('express');
 
+const expressRateLimit = require('express-rate-limit');
+
+const Redis = require('ioredis');
+
+const crypto = require('crypto');
 /* config */
 
+
+const config = require('../config');
 /* managers */
 
+
+const lightningClient = require('../lightning');
 /* global */
+
+
 global.forwardFee = 0;
 global.internalFee = 0;
 /* variables */
@@ -31,11 +29,10 @@ let lightningIdentityPubKey = null;
 let lightningDescribeGraph = {};
 /* initialize express */
 
-let router = _express.default.Router();
+let router = express.Router();
 /* initialize Redis */
 
-
-let redis = new _ioredis.default(_config.default.redis);
+let redis = new Redis(config.redis);
 redis.info((err, info) => {
   if (err || !info) {
     console.error('Redis failed to start', err);
@@ -44,23 +41,21 @@ redis.info((err, info) => {
 });
 /* lightning apis */
 
-_lightning.default.getInfo({}, (err, info) => {
+lightningClient.getInfo({}, (err, info) => {
   if (err) {
     console.error('LND failed to start', err);
     process.exit(3);
   }
 
   if (info) {
-    if (!info.synced_to_chain && !_config.default.forceStart) {
+    if (!info.synced_to_chain && !config.forceStart) {
       console.error('LND not synced');
     }
 
     lightningIdentityPubKey = info.lightningIdentityPubKey;
   }
 });
-
-let call = _lightning.default.channelAcceptor({});
-
+let call = lightningClient.channelAcceptor({});
 call.on('data', response => {
   call.write({
     accept: true,
@@ -74,9 +69,7 @@ call.on('data', response => {
     zero_conf: true
   });
 });
-
-let subscribeInvoicesCall = _lightning.default.subscribeInvoices({});
-
+let subscribeInvoicesCall = lightningClient.subscribeInvoices({});
 subscribeInvoicesCall.on('data', async response => {
   if (response.state === 'SETTLED') {
     let paymentHash = response.r_hash.toString('hex');
@@ -89,7 +82,7 @@ subscribeInvoicesCall.on('data', async response => {
 });
 
 function updateDescribeGraph() {
-  _lightning.default.describeGraph({
+  lightningClient.describeGraph({
     include_unannounced: true
   }, (err, response) => {
     if (!err) lightningDescribeGraph = response;
@@ -100,7 +93,7 @@ updateDescribeGraph();
 setInterval(updateDescribeGraph, 120000);
 /* express routers */
 
-(0, _expressRateLimit.default)({
+expressRateLimit({
   windowMs: 30 * 60 * 1000,
   max: 100
 });
@@ -175,7 +168,7 @@ router.post('/addinvoice', postLimiter, async (req, res) => {
     expiry = 3600 * 24
   } = req.body;
   let preimage = user.makePreimage();
-  let invoice = await _lightning.default.addInvoice({
+  let invoice = await lightningClient.addInvoice({
     value: amount,
     description: description,
     expiry: expiry,
@@ -215,7 +208,7 @@ router.post('/payinvoice', async (req, res) => {
   }
 
   let userBalance = await user.getBalance();
-  let decodedInvoice = await _lightning.default.decodePayReq({
+  let decodedInvoice = await lightningClient.decodePayReq({
     pay_req: invoice
   });
 
@@ -255,8 +248,7 @@ router.post('/payinvoice', async (req, res) => {
       });
     } else {
       /* external payment */
-      var call = _lightning.default.sendPayment();
-
+      var call = lightningClient.sendPayment();
       call.on('data', async payment => {
         await user.unlockFunds(invoice);
 
@@ -302,7 +294,7 @@ router.post('/sendcoins', async (req, res) => {
   let userBalance = await user.getBalance();
 
   if (userBalance >= amount) {
-    let sendCoinsRes = await _lightning.default.sendCoins({
+    let sendCoinsRes = await lightningClient.sendCoins({
       addr: req.body.address,
       amount: freeAmount
     });
@@ -380,7 +372,7 @@ router.get('/decodeinvoice', async (req, res) => {
   let {
     invoice
   } = req.body;
-  let decodeInvoice = await _lightning.default.decodePayReq({
+  let decodeInvoice = await lightningClient.decodePayReq({
     pay_req: invoice
   });
   return res.send(decodeInvoice !== null && decodeInvoice !== void 0 && decodeInvoice.payment_hash ? decodeInvoice : null);

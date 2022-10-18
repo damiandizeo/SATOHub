@@ -5,19 +5,19 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.User = void 0;
 
-var _crypto = _interopRequireDefault(require("crypto"));
-
-var _btcDecoder = require("../btc-decoder");
-
-var _config = _interopRequireDefault(require("../config"));
-
 var _Lock = require("./Lock");
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 /* modules */
+const crypto = require('crypto');
 
+const {
+  decodeRawHex
+} = require('../btc-decoder');
+
+const config = require('../config');
 /* managers */
+
+
 class User {
   constructor(redis, lightningClient) {
     this._redis = redis;
@@ -33,18 +33,17 @@ class User {
     let buffer = null;
 
     if (!login) {
-      let buffer = _crypto.default.randomBytes(10);
-
+      let buffer = crypto.randomBytes(10);
       login = buffer.toString('hex');
     }
 
     if (!password) {
-      buffer = _crypto.default.randomBytes(10);
+      buffer = crypto.randomBytes(10);
       password = buffer.toString('hex');
     }
 
     if (!userid) {
-      buffer = _crypto.default.randomBytes(24);
+      buffer = crypto.randomBytes(24);
       userid = buffer.toString('hex');
     }
 
@@ -82,8 +81,7 @@ class User {
   }
 
   async generateAccessToken() {
-    let buffer = _crypto.default.randomBytes(20);
-
+    let buffer = crypto.randomBytes(20);
     this._access_token = buffer.toString('hex');
     await this._redis.set('userid_for_' + this._access_token, this._userid);
   }
@@ -91,13 +89,12 @@ class User {
 
 
   makePreimage() {
-    let buffer = _crypto.default.randomBytes(32);
-
+    let buffer = crypto.randomBytes(32);
     return buffer.toString('hex');
   }
 
   hash(string) {
-    return _crypto.default.createHash('sha256').update(string).digest().toString('hex');
+    return crypto.createHash('sha256').update(string).digest().toString('hex');
   }
 
   static shuffle(a) {
@@ -165,8 +162,7 @@ class User {
   }
 
   async savePreimage(preimage, expiry) {
-    const paymentHash = _crypto.default.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
-
+    const paymentHash = crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
     const key = 'preimage_for_' + paymentHash;
     await this._redis.set(key, preimage);
     await this._redis.expire(key, expiry);
