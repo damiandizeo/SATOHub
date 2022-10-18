@@ -30,6 +30,7 @@ app.use(bodyParser.urlencoded({
 }));
 app.use(bodyParser.json(null));
 app.use(api);
+app.use('/', (req, res) => res.send('Welcome to SATOHub'));
 /* server */
 
 const bindHost = process.env.HOST || '0.0.0.0';

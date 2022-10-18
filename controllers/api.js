@@ -30,6 +30,10 @@ let lightningDescribeGraph = {};
 /* initialize express */
 
 let router = express.Router();
+let postLimiter = expressRateLimit({
+  windowMs: 30 * 60 * 1000,
+  max: 100
+});
 /* initialize Redis */
 
 let redis = new Redis(config.redis);
@@ -93,13 +97,8 @@ updateDescribeGraph();
 setInterval(updateDescribeGraph, 120000);
 /* express routers */
 
-expressRateLimit({
-  windowMs: 30 * 60 * 1000,
-  max: 100
-});
-
 const loadAuthorizedUser = async authorization => {
-  let user = new _managers.User(redis, lightning);
+  let user = new _managers.User(redis, lightningClient);
 
   if (!(await user.loadByAuthorization(authorization))) {
     return null;
@@ -119,7 +118,7 @@ router.post('/create', postLimiter, async (req, res) => {
   } = req.body;
 
   if (partnerid == 'satowallet') {
-    let user = new _managers.User(redis, lightning);
+    let user = new _managers.User(redis, lightningClient);
     let {
       loginRes,
       passwordRes
@@ -141,7 +140,7 @@ router.post('/login', postLimiter, async (req, res) => {
   } = req.body;
 
   if (login && password) {
-    let user = new _managers.User(redis, lightning);
+    let user = new _managers.User(redis, lightningClient);
 
     if ((await user.loadByLoginAndPassword(login, password)) == true) {
       res.send({
