@@ -156,7 +156,7 @@ router.post('/login', postLimiter, async (req, res) => {
 router.post('/addinvoice', postLimiter, async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
   /* params */
@@ -189,7 +189,7 @@ router.post('/addinvoice', postLimiter, async (req, res) => {
 router.post('/payinvoice', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
   /* params */
@@ -281,7 +281,7 @@ router.post('/payinvoice', async (req, res) => {
 router.post('/sendcoins', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
   /* params */
@@ -317,7 +317,7 @@ router.post('/sendcoins', async (req, res) => {
 router.get('/address', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
 
@@ -335,7 +335,7 @@ router.get('/address', async (req, res) => {
 router.get('/balance', postLimiter, async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
   let userBalance = await user.getBalance();
@@ -346,7 +346,7 @@ router.get('/balance', postLimiter, async (req, res) => {
 router.get('/transactions', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
   /* user invoices */
@@ -363,7 +363,7 @@ router.get('/transactions', async (req, res) => {
 router.get('/decodeinvoice', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res({
+  if (!user) return res.send({
     error: 'unable to authorize user'
   });
   /* params */
