@@ -34,7 +34,7 @@ app.use('/', (req, res) => res.send('Welcome to SATOHub'));
 /* server */
 
 const bindHost = process.env.HOST || '0.0.0.0';
-const bindPort = process.env.PORT || 3000;
+const bindPort = process.env.PORT || 5000;
 let server = app.listen(bindPort, bindHost, function () {
   console.log('BOOTING UP', 'Listening on ' + bindHost + ':' + bindPort);
 });
