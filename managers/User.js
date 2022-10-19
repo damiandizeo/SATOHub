@@ -320,18 +320,8 @@ class User {
 
   async getOnChainTransactions() {
     let onChainTransactions = [];
-    let txsIds = [];
-    let userOnChainTransactions = await this._redis.lrange('sato_onchain_transactions_spent_by_user_' + this._userid, 0, -1);
-
-    for (let userOnChainTransaction of userOnChainTransactions) {
-      userOnChainTransaction = JSON.parse(userOnChainTransaction);
-
-      if (sentTx.txid && sentTx.type == 'bitcoin_tx') {
-        txsIds.push(sentTx.txid);
-      }
-    }
-
     let address = await this.getAddress();
+    let txsIds = await this._redis.lrange('sato_onchain_transactions_spent_by_user_' + this._userid, 0, -1);
     return new Promise((resolve, reject) => {
       this._lightningClient.getTransactions({}, (err, onChainTransactionsRes) => {
         if (err) return resolve([]);
