@@ -302,7 +302,6 @@ router.post('/sendcoins', async (req, res) => {
       addr: address,
       amount: amount
     }, (err, sendCoinsRes) => {
-      console.log('/sendcoins', err, sendCoinsRes);
       if (err) return res.send({
         error: 'unable to send coins'
       });

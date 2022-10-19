@@ -328,7 +328,7 @@ class User {
         onChainTransactionsRes.transactions.filter(tx => !tx.label.includes('openchannel')).map(tx => {
           delete tx['raw_tx_hex'];
 
-          if (tx.label == 'external' && txsIds.includes(tx.txhash)) {
+          if (tx.label == 'external' && txsIds.includes(tx.tx_hash)) {
             tx.address = address;
           } else {
             tx.output_details.some((vout, i) => {
