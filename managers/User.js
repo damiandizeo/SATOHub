@@ -191,11 +191,11 @@ class User {
   }
 
   async setDomain(domain) {
-    return await this._redis.set('sato_domain_for_user' + this._userid, domain);
+    return await this._redis.set('sato_domain_for_user_' + this._userid, domain);
   }
 
   async setDeviceToken(device) {
-    return await this._redis.set('sato_device_token_for_user' + this._userid, JSON.stringify(device));
+    return await this._redis.set('sato_device_token_for_user_' + this._userid, JSON.stringify(device));
   }
   /* getters */
 

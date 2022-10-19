@@ -349,9 +349,7 @@ router.post('/domain', async (req, res) => {
     domain
   } = req.body;
   console.log(user.getUserId(), '/domain', JSON.stringify(req.body));
-  await user.setDomain({
-    domain: domain
-  });
+  await user.setDomain(domain);
   return res.send(true);
 });
 router.post('/devicetoken', async (req, res) => {
