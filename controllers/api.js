@@ -227,7 +227,9 @@ router.post('/payinvoice', async (req, res) => {
 
     if (userBalance >= amount) {
       if (lightningIdentityPubKey === decodedInvoice.destination) {
+        console.log(user.getUserId(), 'invoice amount', 'internal payment');
         /* internal payment */
+
         if (await user.getPaymentHashPaid(decodedInvoice.payment_hash)) {
           lock.releaseLock();
           return res.send({
@@ -244,7 +246,9 @@ router.post('/payinvoice', async (req, res) => {
           payment_preimage: preimage
         });
       } else {
+        console.log(user.getUserId(), 'invoice amount', 'external payment');
         /* external payment */
+
         var call = lightningClient.sendPayment();
         call.on('data', async payment => {
           await user.unlockFunds(invoice);
@@ -298,6 +302,7 @@ router.post('/sendcoins', async (req, res) => {
       addr: address,
       amount: amount
     }, (err, sendCoinsRes) => {
+      console.log('/sendcoins', err, sendCoinsRes);
       if (err) return res.send({
         error: 'unable to send coins'
       });
@@ -311,6 +316,27 @@ router.post('/sendcoins', async (req, res) => {
       error: 'not enough balance'
     });
   }
+});
+router.post('/decodeinvoice', async (req, res) => {
+  /* authorization */
+  let user = await loadAuthorizedUser(req.headers.authorization);
+  if (!user) return res.send({
+    error: 'unable to authorize user'
+  });
+  /* params */
+
+  let {
+    invoice
+  } = req.body;
+  console.log(user.getUserId(), '/decodeinvoice', JSON.stringify(req.body));
+  lightningClient.decodePayReq({
+    pay_req: invoice
+  }, (err, decodedInvoice) => {
+    if (err) return res.send({
+      error: 'invoice not valid'
+    });
+    return res.send(decodedInvoice);
+  });
 });
 router.get('/address', async (req, res) => {
   /* authorization */
@@ -362,26 +388,5 @@ router.get('/transactions', async (req, res) => {
   let invoicesPaid = await user.getInvoicesPaid();
   console.log(user.getUserId(), 'invoicesPaid', JSON.stringify(invoicesPaid));
   res.send([...invoicesGenerated, ...onChainTransactions, ...invoicesPaid]);
-});
-router.post('/decodeinvoice', async (req, res) => {
-  /* authorization */
-  let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res.send({
-    error: 'unable to authorize user'
-  });
-  /* params */
-
-  let {
-    invoice
-  } = req.body;
-  console.log(user.getUserId(), '/decodeinvoice', JSON.stringify(req.body));
-  lightningClient.decodePayReq({
-    pay_req: invoice
-  }, (err, decodedInvoice) => {
-    if (err) return res.send({
-      error: 'invoice not valid'
-    });
-    return res.send(decodedInvoice);
-  });
 });
 module.exports = router;
