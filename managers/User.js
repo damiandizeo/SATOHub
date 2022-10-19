@@ -51,6 +51,10 @@ class User {
     this._password = password;
     this._userid = userid;
     await this.saveUserToDatabase();
+    return {
+      login,
+      password
+    };
   }
 
   async loadByLoginAndPassword(login, password) {

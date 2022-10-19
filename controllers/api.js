@@ -119,12 +119,9 @@ router.post('/create', postLimiter, async (req, res) => {
 
   if (partnerid == 'satowallet') {
     let user = new _managers.User(redis, lightningClient);
-    let {
-      loginRes,
-      passwordRes
-    } = await user.create(userid, login, password);
+    let newUser = await user.create(userid, login, password);
     return res.send({
-      secret: `${login}:${password}`
+      secret: `${newUser.login}:${newUser.password}`
     });
   } else {
     return res.send({
