@@ -142,7 +142,7 @@ router.post('/login', postLimiter, async (req, res) => {
 
     if ((await user.loadByLoginAndPassword(login, password)) == true) {
       res.send({
-        access_token: u.getAccessToken()
+        access_token: user.getAccessToken()
       });
     }
   }
