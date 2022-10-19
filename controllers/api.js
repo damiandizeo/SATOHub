@@ -360,15 +360,15 @@ router.get('/transactions', async (req, res) => {
   console.log(user.getUserId(), '/transactions');
   /* user invoices */
 
-  let invoicesGenerated = await (void 0).getUserInvoices();
+  let invoicesGenerated = await user.getUserInvoices();
   console.log(user.getUserId(), 'invoicesGenerated', JSON.stringify(invoicesGenerated));
   /* onchain transactions */
 
-  let onChainTransactions = await (void 0).getOnChainTransactions();
+  let onChainTransactions = await user.getOnChainTransactions();
   console.log(user.getUserId(), 'onChainTransactions', JSON.stringify(onChainTransactions));
   /* invoices paid */
 
-  let invoicesPaid = await (void 0).getInvoicesPaid();
+  let invoicesPaid = await user.getInvoicesPaid();
   console.log(user.getUserId(), 'invoicesPaid', JSON.stringify(invoicesPaid));
   res.send([...invoices, ...onChainTransactions, ...invoicesPaid]);
 });
