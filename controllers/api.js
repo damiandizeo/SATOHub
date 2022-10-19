@@ -76,9 +76,9 @@ call.on('data', response => {
 let subscribeInvoicesCall = lightningClient.subscribeInvoices({});
 subscribeInvoicesCall.on('data', async response => {
   if (response.state === 'SETTLED') {
-    let paymentHash = response.r_hash.toString('hex');
-    await redis.set('ispaid_' + paymentHash, true);
-    let userId = await user.getUserIdByPaymentHash(paymentHash);
+    let user = new _managers.User(redis, lightningClient);
+    user._userid = await user.getUserIdByPaymentHash(paymentHash);
+    user.savePaymentHashPaid(paymentHash, true);
     /* send PN to user id */
 
     console.log(userId);
@@ -111,11 +111,11 @@ router.post('/create', postLimiter, async (req, res) => {
   /* params */
   const {
     partnerid,
-    accounttype,
     userid,
     login,
     password
   } = req.body;
+  console.log(userid, '/create', JSON.stringify(req.body));
 
   if (partnerid == 'satowallet') {
     let user = new _managers.User(redis, lightningClient);
@@ -138,6 +138,7 @@ router.post('/login', postLimiter, async (req, res) => {
     login,
     password
   } = req.body;
+  console.log('API Call', '/login', JSON.stringify(req.body));
 
   if (login && password) {
     let user = new _managers.User(redis, lightningClient);
@@ -166,13 +167,16 @@ router.post('/addinvoice', postLimiter, async (req, res) => {
     description,
     expiry = 3600 * 24
   } = req.body;
+  console.log(user.getUserId(), '/addInvoice', JSON.stringify(req.body));
   let preimage = user.makePreimage();
+  console.log('preimage', preimage);
   let invoice = await lightningClient.addInvoice({
     value: amount,
     description: description,
     expiry: expiry,
     r_preimage: Buffer.from(preimage, 'hex').toString('base64')
   });
+  console.log('invoice', JSON.stringify(invoice));
 
   if (invoice && invoice.payment_request) {
     await user.saveUserInvoice(invoice.payment_request);
@@ -198,7 +202,8 @@ router.post('/payinvoice', async (req, res) => {
     invoice,
     amount
   } = req.body;
-  let lock = new _managers.Lock(redis, 'invoice_paying_for_' + user.getUserId());
+  console.log(user.getUserId(), '/payinvoice', JSON.stringify(req.body));
+  let lock = new _managers.Lock(redis, 'sato_invoice_paying_for_' + user.getUserId());
 
   if (!(await lock.obtainLock())) {
     return res.send({
@@ -207,6 +212,7 @@ router.post('/payinvoice', async (req, res) => {
   }
 
   let userBalance = await user.getBalance();
+  console.log(user.getUserId(), 'balance', userBalance);
   let decodedInvoice = await lightningClient.decodePayReq({
     pay_req: invoice
   });
@@ -226,6 +232,8 @@ router.post('/payinvoice', async (req, res) => {
       error: 'amount not specified'
     });
   }
+
+  console.log(user.getUserId(), 'invoice amount', amount);
 
   if (userBalance >= amount) {
     if (lightningIdentityPubKey === decodedInvoice.destination) {
@@ -290,7 +298,9 @@ router.post('/sendcoins', async (req, res) => {
     address,
     amount
   } = req.body;
+  console.log(user.getUserId(), '/sendcoins', JSON.stringify(req.body));
   let userBalance = await user.getBalance();
+  console.log(user.getUserId(), 'balance', userBalance);
 
   if (userBalance >= amount) {
     let sendCoinsRes = await lightningClient.sendCoins({
@@ -320,6 +330,7 @@ router.get('/address', async (req, res) => {
   if (!user) return res.send({
     error: 'unable to authorize user'
   });
+  console.log(user.getUserId(), '/address');
 
   if (await user.generateAddress()) {
     let address = await user.getAddress();
@@ -338,9 +349,9 @@ router.get('/balance', postLimiter, async (req, res) => {
   if (!user) return res.send({
     error: 'unable to authorize user'
   });
-  let userBalance = await user.getBalance();
+  console.log(user.getUserId(), '/balance');
   return res.send({
-    balance: userBalance
+    balance: await user.getBalance()
   });
 });
 router.get('/transactions', async (req, res) => {
@@ -349,15 +360,19 @@ router.get('/transactions', async (req, res) => {
   if (!user) return res.send({
     error: 'unable to authorize user'
   });
+  console.log(user.getUserId(), '/transactions');
   /* user invoices */
 
-  let invoices = await (void 0).getUserInvoices();
+  let invoicesGenerated = await (void 0).getUserInvoices();
+  console.log(user.getUserId(), 'invoicesGenerated', JSON.stringify(invoicesGenerated));
   /* onchain transactions */
 
   let onChainTransactions = await (void 0).getOnChainTransactions();
+  console.log(user.getUserId(), 'onChainTransactions', JSON.stringify(onChainTransactions));
   /* invoices paid */
 
   let invoicesPaid = await (void 0).getInvoicesPaid();
+  console.log(user.getUserId(), 'invoicesPaid', JSON.stringify(invoicesPaid));
   res.send([...invoices, ...onChainTransactions, ...invoicesPaid]);
 });
 router.get('/decodeinvoice', async (req, res) => {
@@ -371,6 +386,7 @@ router.get('/decodeinvoice', async (req, res) => {
   let {
     invoice
   } = req.body;
+  console.log(user.getUserId(), '/transactions', JSON.stringify(req.body));
   let decodeInvoice = await lightningClient.decodePayReq({
     pay_req: invoice
   });

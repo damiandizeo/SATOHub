@@ -54,7 +54,7 @@ class User {
   }
 
   async loadByLoginAndPassword(login, password) {
-    let userid = await this._redis.get('user_' + login + '_' + this.hash(password));
+    let userid = await this._redis.get('sato_user_' + login + '_' + this.hash(password));
 
     if (userid) {
       this._userid = userid;
@@ -70,7 +70,7 @@ class User {
   async loadByAuthorization(authorization) {
     if (!authorization) return false;
     let access_token = authorization.replace('Bearer ', '');
-    let userid = await this._redis.get('userid_for_' + access_token);
+    let userid = await this._redis.get('sato_userid_for_' + access_token);
 
     if (userid) {
       this._userid = userid;
@@ -83,7 +83,7 @@ class User {
   async generateAccessToken() {
     let buffer = crypto.randomBytes(20);
     this._access_token = buffer.toString('hex');
-    await this._redis.set('userid_for_' + this._access_token, this._userid);
+    await this._redis.set('sato_userid_for_' + this._access_token, this._userid);
   }
   /* utils */
 
@@ -128,48 +128,46 @@ class User {
   }
 
   async saveAddress(address) {
-    await this._redis.set('address_for_' + this._userid, address);
+    await this._redis.set('sato_address_for_user_' + this._userid, address);
   }
 
   async saveBalance(balance) {
-    const key = 'balance_for_' + this._userid;
-    await this._redis.set(key, balance);
+    await this._redis.set('sato_balance_for_user_' + this._userid, balance);
     await this._redis.expire(key, 1800);
   }
 
   async saveUserToDatabase() {
-    await this._redis.set('user_' + this._login + '_' + this.hash(this._password), this._userid);
-  }
-
-  async savePaidInvoice(payment_request) {
-    await this._redis.rpush('invoices_paid_for_' + this._userid, payment_request);
-  }
-
-  async saveUTXOSpent(txid) {
-    return await this._redis.rpush('onchain_transactions_for_' + this._userid, txid);
+    await this._redis.set('sato_user_' + this._login + '_' + this.hash(this._password), this._userid);
   }
 
   async saveUserInvoice(invoice) {
     let decodedInvoice = await that._lightningClient.decodePayReq({
       pay_req: invoice.payment_request
     });
-    await this._redis.set('paymenthash_' + decodedInvoice.paymenthash, this._userid);
-    return await this._redis.rpush('invoices_generated_for_' + this._userid, invoice.payment_request);
+    await this._redis.set('sato_payment_hash_for_user_' + decodedInvoice.payment_hash, this._userid);
+    return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice.payment_request);
   }
 
-  async savePaymentHashPaid(paymenthash, isPaid) {
-    return await this._redis.set('invoice_ispaid_' + paymenthash, isPaid);
+  async savePaidInvoice(payment_request) {
+    await this._redis.rpush('sato_invoices_paid_by_user_' + this._userid, payment_request);
+  }
+
+  async saveUTXOSpent(txid) {
+    return await this._redis.rpush('sato_onchain_transactions_spent_by_user_' + this._userid, txid);
+  }
+
+  async savePaymentHashPaid(paymentHash, isPaid) {
+    return await this._redis.set('sato_payment_hash_paid_' + paymentHash, isPaid);
   }
 
   async savePreimage(preimage, expiry) {
     const paymentHash = crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
-    const key = 'preimage_for_' + paymentHash;
-    await this._redis.set(key, preimage);
-    await this._redis.expire(key, expiry);
+    await this._redis.set('sato_preimage_for_payment_hash_' + paymentHash, preimage);
+    await this._redis.expire('sato_preimage_for_payment_hash_' + paymentHash, expiry);
   }
 
   async lockFunds(payment_request) {
-    return this._redis.rpush('locked_payments_for_' + this._userid, payment_request);
+    return this._redis.rpush('sato_locked_payments_for_user_' + this._userid, payment_request);
   }
   /* getters */
 
@@ -191,7 +189,7 @@ class User {
   }
 
   async getAddress() {
-    return await this._redis.get('address_for_' + this._userid);
+    return await this._redis.get('sato_address_for_user_' + this._userid);
   }
 
   async getBalance() {
@@ -234,46 +232,45 @@ class User {
   }
 
   async getUserIdByPaymentHash(paymentHash) {
-    return await this._redis.get('paymenthash_' + paymentHash);
+    return await this._redis.get('sato_payment_hash_for_user_' + paymentHash);
   }
 
   async getPaymentHashPaid(paymentHash) {
-    return await this._redis.get('invoice_ispaid_' + paymentHash);
+    return await this._redis.get('sato_payment_hash_paid_' + paymentHash);
   }
 
   async getPreimageByPaymentHash(paymentHash) {
-    return await this._redis.get('preimage_for_' + paymentHash);
+    return await this._redis.get('sato_preimage_for_payment_hash_' + paymentHash);
   }
   /* deletters */
 
 
   async clearBalanceCache() {
-    const key = 'balance_for_' + this._userid;
-    return this._redis.del(key);
+    return this._redis.del('sato_balance_for_user_' + this._userid);
   }
 
   async unlockFunds(payment_request) {
-    let lockedPayments = await this._redis.lrange('locked_payments_for_' + this._userid, 0, -1);
+    let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userid, 0, -1);
 
     for (let lockedPayment of lockedPayments) {
       if (lockedPayment != payment_request) {
-        await this._redis.rpush('locked_payments_for_' + this._userid, lockedPayment);
+        await this._redis.rpush('sato_locked_payments_for_user_' + this._userid, lockedPayment);
       }
     }
   }
 
-  async lookupInvoice(paymenthash) {
+  async lookupInvoice(paymentHash) {
     return await that._lightningClient.lookupInvoice({
-      rhash_str: paymenthash
+      rhash_str: paymentHash
     });
   }
 
-  async syncInvoicePaid(paymenthash) {
-    const invoice = await this.lookupInvoice(paymenthash);
+  async syncInvoicePaid(paymentHash) {
+    const invoice = await this.lookupInvoice(paymentHash);
     const ispaid = invoice.settled;
 
     if (ispaid) {
-      await this.savePaymentHashPaid(paymenthash, true);
+      await this.savePaymentHashPaid(paymentHash, true);
       await this.clearBalanceCache();
     }
 
@@ -282,14 +279,14 @@ class User {
 
   async getUserInvoices() {
     let invoices = [];
-    let userInvoices = await this._redis.lrange('invoices_generated_for_' + this._userid, 0, -1);
+    let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userid, 0, -1);
 
     for (let userInvoice of userInvoices) {
       userInvoice = JSON.parse(userInvoice);
       let decodedInvoice = await that._lightningClient.decodePayReq({
         pay_req: invoice.payment_request
       });
-      decodedInvoice.ispaid = (await this.getPaymentHashPaid(invoice.paymenthash)) || false;
+      decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
       decodedInvoice.type = 'user_invoice';
       delete decodeInvoice['descriptionhash'];
       delete decodeInvoice['route_hints'];
@@ -303,7 +300,7 @@ class User {
   async getOnChainTransactions() {
     let onChainTransactions = [];
     let txsIds = [];
-    let userOnChainTransactions = await this._redis.lrange('onchain_transactions_for_' + this._userid, 0, -1);
+    let userOnChainTransactions = await this._redis.lrange('sato_onchain_transactions_spent_by_user_' + this._userid, 0, -1);
 
     for (let userOnChainTransaction of userOnChainTransactions) {
       userOnChainTransaction = JSON.parse(userOnChainTransaction);
@@ -337,7 +334,7 @@ class User {
 
   async getInvoicesPaid() {
     let invoicesPaid = [];
-    let userInvoicesPaid = await this._redis.lrange('invoices_paid_for_' + this._userid, 0, -1);
+    let userInvoicesPaid = await this._redis.lrange('sato_invoices_paid_by_user_' + this._userid, 0, -1);
 
     for (let userInvoicePaid of userInvoicesPaid) {
       let decodedInvoice = await that._lightningClient.decodePayReq({
@@ -355,7 +352,7 @@ class User {
 
   async getLockedPayments() {
     let payments = [];
-    let lockedPayments = await this._redis.lrange('locked_payments_for_' + this._userid, 0, -1);
+    let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userid, 0, -1);
     let result = [];
 
     for (let lockedPayment of lockedPayments) {
