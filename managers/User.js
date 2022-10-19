@@ -163,6 +163,7 @@ class User {
 
   async saveInvoiceGenerated(invoice, preimage) {
     let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
+    console.log(this.getUserId(), 'decodedInvoice', JSON.stringify(decodedInvoice));
     await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userid);
     await this._redis.set('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, preimage);
     await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodedInvoice.expiry);
