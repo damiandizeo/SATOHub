@@ -139,7 +139,7 @@ class User {
         if (await this.getAddress()) return resolve(true);
 
         if (newAddressRes.address) {
-          await this.saveAddress(newAddress.address);
+          await this.saveAddress(newAddressRes.address);
           return resolve(true);
         }
 
