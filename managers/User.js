@@ -327,7 +327,7 @@ class User {
     for (let userOnChainTransaction of userOnChainTransactions) {
       userOnChainTransaction = JSON.parse(userOnChainTransaction);
 
-      if (sentTx.txid && sentTx.type == 'bitcoind_tx') {
+      if (sentTx.txid && sentTx.type == 'bitcoin_tx') {
         txsIds.push(sentTx.txid);
       }
     }
