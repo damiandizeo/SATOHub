@@ -430,7 +430,8 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
 
   if (!domain) {
     return res.send({
-      error: 'unable to find lightning address'
+      status: 'ERROR',
+      reason: 'unable to find lightning address'
     });
   }
 
@@ -442,7 +443,8 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
 
   if (!(await user.loadByDomain(domain))) {
     return res.send({
-      error: 'unable to find lightning address ' + domain
+      status: 'ERROR',
+      reason: 'unable to find lightning address ' + domain
     });
   }
 
@@ -454,7 +456,8 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
       r_preimage: Buffer.from(preimage, 'hex').toString('base64')
     }, async (err, invoice) => {
       if (err) return res.send({
-        error: 'unable to add invoice'
+        status: 'ERROR',
+        reason: 'unable to add invoice'
       });
       await user.saveInvoiceGenerated(invoice.payment_request, preimage);
       return res.status(200).json({
