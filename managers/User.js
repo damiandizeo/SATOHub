@@ -120,9 +120,9 @@ class User {
     return new Promise((resolve, reject) => {
       this._lightningClient.decodePayReq({
         pay_req: invoice
-      }, (err, decodePayReqRes) => {
+      }, (err, decodedInvoice) => {
         if (err) return resolve({});
-        return resolve(decodePayReqRes);
+        return resolve(decodedInvoice);
       });
     });
   }
@@ -165,7 +165,7 @@ class User {
     let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
     await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userid);
     await this._redis.set('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, preimage);
-    await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodeInvoice.expiry);
+    await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodedInvoice.expiry);
     return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice.payment_request);
   }
 
@@ -306,9 +306,9 @@ class User {
       let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
       decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
       decodedInvoice.type = 'user_invoice';
-      delete decodeInvoice['descriptionhash'];
-      delete decodeInvoice['route_hints'];
-      delete decodeInvoice['features'];
+      delete decodedInvoice['descriptionhash'];
+      delete decodedInvoice['route_hints'];
+      delete decodedInvoice['features'];
       invoices.push(decodedInvoice);
     }
 
@@ -363,9 +363,9 @@ class User {
     for (let userInvoicePaid of userInvoicesPaid) {
       let decodedInvoice = await this.decodeInvoice(userInvoicePaid);
       decodedInvoice.type = 'invoice_paid';
-      delete decodeInvoice['descriptionhash'];
-      delete decodeInvoice['route_hints'];
-      delete decodeInvoice['features'];
+      delete decodedInvoice['descriptionhash'];
+      delete decodedInvoice['route_hints'];
+      delete decodedInvoice['features'];
       invoicesPaid.push(decodedInvoice);
     }
 
@@ -381,9 +381,9 @@ class User {
       lockedPayment = JSON.parse(lockedPayment);
       let decodedInvoice = await this.decodeInvoice(lockedPayment.payment_request);
       decodedInvoice.type = 'invoice_pending';
-      delete decodeInvoice['descriptionhash'];
-      delete decodeInvoice['route_hints'];
-      delete decodeInvoice['features'];
+      delete decodedInvoice['descriptionhash'];
+      delete decodedInvoice['route_hints'];
+      delete decodedInvoice['features'];
       payments.push(lockedPayment);
     }
 
