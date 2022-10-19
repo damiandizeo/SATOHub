@@ -113,22 +113,39 @@ class User {
   static async sleep(s) {
     return new Promise(r => setTimeout(r, s * 1000));
   }
+  /* lightning utils */
+
+
+  async decodeInvoice(invoice) {
+    return new Promise((resolve, reject) => {
+      this._lightningClient.decodePayReq({
+        pay_req: invoice
+      }, (err, decodePayReqRes) => {
+        if (err) return resolve({});
+        return resolve(decodePayReqRes);
+      });
+    });
+  }
   /* setters */
 
 
   async generateAddress() {
     if (await this.getAddress()) return true;
-    let newAddress = await this._lightningClient.newAddress({
-      type: 0
+    return new Promise((resolve, reject) => {
+      this._lightningClient.newAddress({
+        type: 0
+      }, async (err, newAddressRes) => {
+        if (err) return resolve(false);
+        if (await this.getAddress()) return resolve(true);
+
+        if (newAddressRes.address) {
+          await this.saveAddress(newAddress.address);
+          return resolve(true);
+        }
+
+        return resolve(false);
+      });
     });
-    if (await this.getAddress()) return true;
-
-    if (newAddress.address) {
-      await this.saveAddress(newAddress.address);
-      return true;
-    }
-
-    return false;
   }
 
   async saveAddress(address) {
@@ -145,9 +162,7 @@ class User {
   }
 
   async saveUserInvoice(invoice) {
-    let decodedInvoice = await that._lightningClient.decodePayReq({
-      pay_req: invoice.payment_request
-    });
+    let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
     await this._redis.set('sato_payment_hash_for_user_' + decodedInvoice.payment_hash, this._userid);
     return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice.payment_request);
   }
@@ -264,8 +279,13 @@ class User {
   }
 
   async lookupInvoice(paymentHash) {
-    return await that._lightningClient.lookupInvoice({
-      rhash_str: paymentHash
+    return new Promise((resolve, reject) => {
+      this._lightningClient.lookupInvoice({
+        rhash_str: paymentHash
+      }, (err, lookupInvoice) => {
+        if (err) return resolve({});
+        return resolve(lookupInvoice);
+      });
     });
   }
 
@@ -287,9 +307,7 @@ class User {
 
     for (let userInvoice of userInvoices) {
       userInvoice = JSON.parse(userInvoice);
-      let decodedInvoice = await that._lightningClient.decodePayReq({
-        pay_req: invoice.payment_request
-      });
+      let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
       decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
       decodedInvoice.type = 'user_invoice';
       delete decodeInvoice['descriptionhash'];
@@ -315,25 +333,29 @@ class User {
     }
 
     let address = await this.getAddress();
-    let onChainTransactionsRes = await this._lightningClient.getTransactions({});
-    onChainTransactionsRes.transactions.filter(tx => !tx.label.includes('openchannel')).map(tx => {
-      delete tx['raw_tx_hex'];
+    return new Promise((resolve, reject) => {
+      this._lightningClient.getTransactions({}, (err, onChainTransactionsRes) => {
+        if (err) return resolve([]);
+        onChainTransactionsRes.transactions.filter(tx => !tx.label.includes('openchannel')).map(tx => {
+          delete tx['raw_tx_hex'];
 
-      if (tx.label == 'external' && txsIds.includes(tx.txhash)) {
-        tx.address = address;
-      } else {
-        tx.output_details.some((vout, i) => {
-          if (vout.address == address) {
+          if (tx.label == 'external' && txsIds.includes(tx.txhash)) {
             tx.address = address;
-            return true;
+          } else {
+            tx.output_details.some((vout, i) => {
+              if (vout.address == address) {
+                tx.address = address;
+                return true;
+              }
+            });
           }
-        });
-      }
 
-      tx.type = 'bitcoin_tx';
-      onChainTransactions.push(tx);
+          tx.type = 'bitcoin_tx';
+          onChainTransactions.push(tx);
+        });
+        return resolve(onChainTransactions);
+      });
     });
-    return onChainTransactions;
   }
 
   async getInvoicesPaid() {
@@ -341,9 +363,7 @@ class User {
     let userInvoicesPaid = await this._redis.lrange('sato_invoices_paid_by_user_' + this._userid, 0, -1);
 
     for (let userInvoicePaid of userInvoicesPaid) {
-      let decodedInvoice = await that._lightningClient.decodePayReq({
-        pay_req: userInvoicePaid
-      });
+      let decodedInvoice = await this.decodeInvoice(userInvoicePaid);
       decodedInvoice.type = 'invoice_paid';
       delete decodeInvoice['descriptionhash'];
       delete decodeInvoice['route_hints'];
@@ -361,9 +381,7 @@ class User {
 
     for (let lockedPayment of lockedPayments) {
       lockedPayment = JSON.parse(lockedPayment);
-      let decodedInvoice = await that._lightningClient.decodePayReq({
-        pay_req: lockedPayment.payment_request
-      });
+      let decodedInvoice = await this.decodeInvoice(lockedPayment.payment_request);
       decodedInvoice.type = 'invoice_pending';
       delete decodeInvoice['descriptionhash'];
       delete decodeInvoice['route_hints'];

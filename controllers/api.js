@@ -135,13 +135,13 @@ router.post('/login', postLimiter, async (req, res) => {
     login,
     password
   } = req.body;
-  console.log('API Call', '/login', JSON.stringify(req.body));
+  console.log('/login', JSON.stringify(req.body));
 
   if (login && password) {
     let user = new _managers.User(redis, lightningClient);
 
     if ((await user.loadByLoginAndPassword(login, password)) == true) {
-      res.send({
+      return res.send({
         access_token: user.getAccessToken()
       });
     }
