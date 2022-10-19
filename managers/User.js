@@ -378,7 +378,7 @@ class User {
     for (let invoice of lockedPayments) {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_pending';
-      payments.push(lockedPayment);
+      payments.push(decodedInvoice);
     }
 
     return payments;
