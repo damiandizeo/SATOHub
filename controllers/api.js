@@ -56,7 +56,7 @@ lightningClient.getInfo({}, (err, info) => {
       console.error('LND not synced');
     }
 
-    lightningIdentityPubKey = info.lightningIdentityPubKey;
+    lightningIdentityPubKey = info.identity_pubkey;
   }
 });
 let call = lightningClient.channelAcceptor({});
