@@ -256,7 +256,9 @@ class User {
   }
 
   async getPaymentHashPaid(paymentHash) {
-    return await this._redis.get('sato_payment_hash_paid_' + paymentHash);
+    let ispaid = await this._redis.get('sato_payment_hash_paid_' + paymentHash);
+    if (ispaid == true || ispaid === 'true') return true;
+    return false;
   }
 
   async getPreimageByPaymentHash(paymentHash) {

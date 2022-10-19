@@ -226,8 +226,6 @@ router.post('/payinvoice', async (req, res) => {
     console.log(user.getUserId(), 'invoice amount', amount);
 
     if (userBalance >= amount) {
-      console.log(user.getUserId(), lightningIdentityPubKey, decodedInvoice.destination);
-
       if (lightningIdentityPubKey === decodedInvoice.destination) {
         /* internal payment */
         if (await user.getPaymentHashPaid(decodedInvoice.payment_hash)) {
@@ -237,15 +235,10 @@ router.post('/payinvoice', async (req, res) => {
           });
         }
 
-        console.log(user.getUserId(), 'invoice not paid');
         await user.savePaidInvoice(invoice);
-        console.log(user.getUserId(), 'savePaidInvoice');
         await user.savePaymentHashPaid(decodedInvoice.payment_hash, true);
-        console.log(user.getUserId(), 'savePaymentHashPaid');
         await lock.releaseLock();
-        console.log(user.getUserId(), 'releaseLock');
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
-        console.log(user.getUserId(), 'preimage', preimage);
         return res.send({
           payment_request: invoice,
           payment_preimage: preimage
