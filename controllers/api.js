@@ -363,7 +363,7 @@ router.get('/transactions', async (req, res) => {
   console.log(user.getUserId(), 'invoicesPaid', JSON.stringify(invoicesPaid));
   res.send([...invoicesGenerated, ...onChainTransactions, ...invoicesPaid]);
 });
-router.get('/decodeinvoice', async (req, res) => {
+router.post('/decodeinvoice', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
   if (!user) return res.send({
