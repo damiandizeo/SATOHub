@@ -442,7 +442,7 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
 
   if (!(await user.loadByDomain(domain))) {
     return res.send({
-      error: 'unable to authorize user'
+      error: 'unable to find lightning address ' + domain
     });
   }
 
