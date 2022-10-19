@@ -337,6 +337,42 @@ router.post('/decodeinvoice', async (req, res) => {
     return res.send(decodedInvoice);
   });
 });
+router.post('/domain', async (req, res) => {
+  /* authorization */
+  let user = await loadAuthorizedUser(req.headers.authorization);
+  if (!user) return res.send({
+    error: 'unable to authorize user'
+  });
+  /* params */
+
+  let {
+    domain
+  } = req.body;
+  console.log(user.getUserId(), '/domain', JSON.stringify(req.body));
+  await user.setDomain({
+    domain: domain
+  });
+  return res.send(true);
+});
+router.post('/devicetoken', async (req, res) => {
+  /* authorization */
+  let user = await loadAuthorizedUser(req.headers.authorization);
+  if (!user) return res.send({
+    error: 'unable to authorize user'
+  });
+  /* params */
+
+  let {
+    platform,
+    deviceToken
+  } = req.body;
+  console.log(user.getUserId(), '/devicetoken', JSON.stringify(req.body));
+  await user.setDeviceToken({
+    platform: platform,
+    deviceToken: deviceToken
+  });
+  return res.send(true);
+});
 router.get('/address', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
