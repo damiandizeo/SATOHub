@@ -358,19 +358,19 @@ router.get('/transactions', async (req, res) => {
     error: 'unable to authorize user'
   });
   console.log(user.getUserId(), '/transactions');
-  /* user invoices */
-
-  let invoicesGenerated = await user.getUserInvoices();
-  console.log(user.getUserId(), 'invoicesGenerated', JSON.stringify(invoicesGenerated));
   /* onchain transactions */
 
   let onChainTransactions = await user.getOnChainTransactions();
   console.log(user.getUserId(), 'onChainTransactions', JSON.stringify(onChainTransactions));
+  /* user invoices */
+
+  let invoicesGenerated = await user.getInvoicesGenerated();
+  console.log(user.getUserId(), 'invoicesGenerated', JSON.stringify(invoicesGenerated));
   /* invoices paid */
 
   let invoicesPaid = await user.getInvoicesPaid();
   console.log(user.getUserId(), 'invoicesPaid', JSON.stringify(invoicesPaid));
-  res.send([...invoices, ...onChainTransactions, ...invoicesPaid]);
+  res.send([...invoicesGenerated, ...onChainTransactions, ...invoicesPaid]);
 });
 router.get('/decodeinvoice', async (req, res) => {
   /* authorization */

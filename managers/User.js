@@ -163,7 +163,7 @@ class User {
 
   async saveUserInvoice(invoice) {
     let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
-    await this._redis.set('sato_payment_hash_for_user_' + decodedInvoice.payment_hash, this._userid);
+    await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userid);
     return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice.payment_request);
   }
 
@@ -213,22 +213,22 @@ class User {
 
   async getBalance() {
     let calculatedBalance = 0;
-    /* balance from invoices paid */
-
-    let invoices = await this.getUserInvoices();
-
-    for (let invoice of invoices) {
-      if (invoice.ispaid) {
-        calculatedBalance += +invoice.num_satoshis;
-      }
-    }
     /* balance from onchain transactions */
-
 
     let onChainTransactions = await this.getOnChainTransactions();
 
     for (let onChainTransaction of onChainTransactions) {
       calculatedBalance += parseFloat(onChainTransaction.amount);
+    }
+    /* balance from invoices paid */
+
+
+    let invoices = await this.getInvoicesGenerated();
+
+    for (let invoice of invoices) {
+      if (invoice.ispaid) {
+        calculatedBalance += +invoice.num_satoshis;
+      }
     }
     /* balance from invoices paid */
 
@@ -251,7 +251,7 @@ class User {
   }
 
   async getUserIdByPaymentHash(paymentHash) {
-    return await this._redis.get('sato_payment_hash_for_user_' + paymentHash);
+    return await this._redis.get('sato_user_for_payment_hash_' + paymentHash);
   }
 
   async getPaymentHashPaid(paymentHash) {
@@ -301,7 +301,7 @@ class User {
     return ispaid;
   }
 
-  async getUserInvoices() {
+  async getInvoicesGenerated() {
     let invoices = [];
     let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userid, 0, -1);
 
