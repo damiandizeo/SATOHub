@@ -245,7 +245,7 @@ class User {
     let lockedPayments = await this.getLockedPayments();
 
     for (let lockedPayment of lockedPayments) {
-      calculatedBalance -= +paym.num_satoshis;
+      calculatedBalance -= +lockedPayment.num_satoshis;
     }
 
     return calculatedBalance;
