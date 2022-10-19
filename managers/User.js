@@ -162,12 +162,11 @@ class User {
   }
 
   async saveInvoiceGenerated(invoice, preimage) {
-    let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
-    console.log(this.getUserId(), 'decodedInvoice', JSON.stringify(decodedInvoice));
+    let decodedInvoice = await this.decodeInvoice(invoice);
     await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userid);
     await this._redis.set('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, preimage);
     await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodedInvoice.expiry);
-    return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice.payment_request);
+    return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice);
   }
 
   async savePaidInvoice(payment_request) {
@@ -182,8 +181,8 @@ class User {
     return await this._redis.set('sato_payment_hash_paid_' + paymentHash, isPaid);
   }
 
-  async lockFunds(payment_request) {
-    return this._redis.rpush('sato_locked_payments_for_user_' + this._userid, payment_request);
+  async lockFunds(invoice) {
+    return this._redis.rpush('sato_locked_payments_for_user_' + this._userid, invoice);
   }
   /* getters */
 
@@ -265,11 +264,11 @@ class User {
     return this._redis.del('sato_balance_for_user_' + this._userid);
   }
 
-  async unlockFunds(payment_request) {
+  async unlockFunds(invoice) {
     let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userid, 0, -1);
 
     for (let lockedPayment of lockedPayments) {
-      if (lockedPayment != payment_request) {
+      if (lockedPayment != invoice) {
         await this._redis.rpush('sato_locked_payments_for_user_' + this._userid, lockedPayment);
       }
     }
@@ -302,11 +301,10 @@ class User {
     let invoices = [];
     let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userid, 0, -1);
 
-    for (let userInvoice of userInvoices) {
-      userInvoice = JSON.parse(userInvoice);
-      let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
+    for (let invoice of userInvoices) {
+      let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
-      decodedInvoice.type = 'user_invoice';
+      decodedInvoice.type = 'invoice_generated';
       delete decodedInvoice['descriptionhash'];
       delete decodedInvoice['route_hints'];
       delete decodedInvoice['features'];
@@ -361,8 +359,8 @@ class User {
     let invoicesPaid = [];
     let userInvoicesPaid = await this._redis.lrange('sato_invoices_paid_by_user_' + this._userid, 0, -1);
 
-    for (let userInvoicePaid of userInvoicesPaid) {
-      let decodedInvoice = await this.decodeInvoice(userInvoicePaid);
+    for (let invoice of userInvoicesPaid) {
+      let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_paid';
       delete decodedInvoice['descriptionhash'];
       delete decodedInvoice['route_hints'];
@@ -378,9 +376,8 @@ class User {
     let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userid, 0, -1);
     let result = [];
 
-    for (let lockedPayment of lockedPayments) {
-      lockedPayment = JSON.parse(lockedPayment);
-      let decodedInvoice = await this.decodeInvoice(lockedPayment.payment_request);
+    for (let invoice of lockedPayments) {
+      let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_pending';
       delete decodedInvoice['descriptionhash'];
       delete decodedInvoice['route_hints'];

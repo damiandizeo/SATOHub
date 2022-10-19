@@ -175,7 +175,6 @@ router.post('/addinvoice', postLimiter, async (req, res) => {
     if (err) return res.send({
       error: 'unable to add invoice'
     });
-    console.log(user.getUserId(), 'invoice', JSON.stringify(invoice));
     await user.saveInvoiceGenerated(invoice.payment_request, preimage);
     return res.send({
       payment_request: invoice.payment_request
