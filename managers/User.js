@@ -353,7 +353,9 @@ class User {
           tx.type = 'bitcoin_tx';
           onChainTransactions.push(tx);
         });
-        return resolve(onChainTransactions);
+        return resolve(onChainTransactions.filter(tx => {
+          return tx.address == address;
+        }));
       });
     });
   }
