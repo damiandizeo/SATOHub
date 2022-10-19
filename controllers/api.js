@@ -166,25 +166,19 @@ router.post('/addinvoice', postLimiter, async (req, res) => {
   } = req.body;
   console.log(user.getUserId(), '/addInvoice', JSON.stringify(req.body));
   let preimage = user.makePreimage();
-  console.log('preimage', preimage);
-  let invoice = await lightningClient.addInvoice({
+  lightningClient.addInvoice({
     value: amount,
     description: description,
     expiry: expiry,
     r_preimage: Buffer.from(preimage, 'hex').toString('base64')
-  });
-  console.log('invoice', JSON.stringify(invoice));
-
-  if (invoice && invoice.payment_request) {
-    await user.saveUserInvoice(invoice.payment_request);
-    await user.savePreimage(preimage, expiry);
+  }, async (err, invoice) => {
+    if (err) return res.send({
+      error: 'unable to add invoice'
+    });
+    await user.saveInvoiceGenerated(invoice.payment_request, preimage);
     return res.send({
       payment_request: invoice.payment_request
     });
-  }
-
-  return res.send({
-    error: 'unable to add invoice'
   });
 });
 router.post('/payinvoice', async (req, res) => {
@@ -210,78 +204,78 @@ router.post('/payinvoice', async (req, res) => {
 
   let userBalance = await user.getBalance();
   console.log(user.getUserId(), 'balance', userBalance);
-  let decodedInvoice = await lightningClient.decodePayReq({
+  lightningClient.decodePayReq({
     pay_req: invoice
-  });
-
-  if (!decodedInvoice) {
-    lock.releaseLock();
-    return res.send({
-      error: 'invoice not valid'
-    });
-  }
-
-  amount = decodedInvoice.num_satoshis ? +decodedInvoice.num_satoshis : amount;
-
-  if (!amount) {
-    await lock.releaseLock();
-    return res.send({
-      error: 'amount not specified'
-    });
-  }
-
-  console.log(user.getUserId(), 'invoice amount', amount);
-
-  if (userBalance >= amount) {
-    if (lightningIdentityPubKey === decodedInvoice.destination) {
-      /* internal payment */
-      if (await user.getPaymentHashPaid(decodeInvoice.payment_hash)) {
-        lock.releaseLock();
-        return res.send({
-          error: 'invoice already paid'
-        });
-      }
-
-      await user.savePaidInvoice(invoice);
-      await user.savePaymentHashPaid(decodeInvoice.payment_hash, true);
-      await lock.releaseLock();
-      let preimage = await user.getPreimageByPaymentHash(decodeInvoice.payment_hash);
+  }, async (err, decodeInvoice) => {
+    if (err || !decodedInvoice) {
+      lock.releaseLock();
       return res.send({
-        payment_request: invoice,
-        payment_preimage: preimage
-      });
-    } else {
-      /* external payment */
-      var call = lightningClient.sendPayment();
-      call.on('data', async payment => {
-        await user.unlockFunds(invoice);
-
-        if (payment && payment.payment_route && payment.payment_route.total_amt_msat) {
-          await user.savePaidInvoice(invoice);
-          lock.releaseLock();
-          return res.send({
-            payment_request: invoice,
-            payment_preimage: payment.payment_preimage
-          });
-        } else {
-          lock.releaseLock();
-          return res.send({
-            error: 'unable to pay invoice'
-          });
-        }
-      });
-      await user.lockFunds(invoice);
-      call.write({
-        payment_request: invoice,
-        amt: amount
+        error: 'invoice not valid'
       });
     }
-  } else {
-    lock.releaseLock();
-    return res.send({
-      error: 'not enough balance'
-    });
-  }
+
+    amount = decodedInvoice.num_satoshis ? +decodedInvoice.num_satoshis : amount;
+
+    if (!amount) {
+      await lock.releaseLock();
+      return res.send({
+        error: 'amount not specified'
+      });
+    }
+
+    console.log(user.getUserId(), 'invoice amount', amount);
+
+    if (userBalance >= amount) {
+      if (lightningIdentityPubKey === decodedInvoice.destination) {
+        /* internal payment */
+        if (await user.getPaymentHashPaid(decodeInvoice.payment_hash)) {
+          lock.releaseLock();
+          return res.send({
+            error: 'invoice already paid'
+          });
+        }
+
+        await user.savePaidInvoice(invoice);
+        await user.savePaymentHashPaid(decodeInvoice.payment_hash, true);
+        await lock.releaseLock();
+        let preimage = await user.getPreimageByPaymentHash(decodeInvoice.payment_hash);
+        return res.send({
+          payment_request: invoice,
+          payment_preimage: preimage
+        });
+      } else {
+        /* external payment */
+        var call = lightningClient.sendPayment();
+        call.on('data', async payment => {
+          await user.unlockFunds(invoice);
+
+          if (payment && payment.payment_route && payment.payment_route.total_amt_msat) {
+            await user.savePaidInvoice(invoice);
+            lock.releaseLock();
+            return res.send({
+              payment_request: invoice,
+              payment_preimage: payment.payment_preimage
+            });
+          } else {
+            lock.releaseLock();
+            return res.send({
+              error: 'unable to pay invoice'
+            });
+          }
+        });
+        await user.lockFunds(invoice);
+        call.write({
+          payment_request: invoice,
+          amt: amount
+        });
+      }
+    } else {
+      lock.releaseLock();
+      return res.send({
+        error: 'not enough balance'
+      });
+    }
+  });
 });
 router.post('/sendcoins', async (req, res) => {
   /* authorization */
@@ -300,21 +294,18 @@ router.post('/sendcoins', async (req, res) => {
   console.log(user.getUserId(), 'balance', userBalance);
 
   if (userBalance >= amount) {
-    let sendCoinsRes = await lightningClient.sendCoins({
-      addr: req.body.address,
-      amount: freeAmount
-    });
-
-    if (sendCoinsRes && sendCoinsRes.txid) {
-      user.saveUTXOSpent(sendCoinsRes.txid);
+    lightningClient.sendCoins({
+      addr: address,
+      amount: amount
+    }, (err, sendCoinsRes) => {
+      if (err) return res.send({
+        error: 'unable to send coins'
+      });
+      user.saveOnChainTransaction(sendCoinsRes.txid);
       return res.send({
         txid: sendCoinsRes.txid
       });
-    } else {
-      return res.send({
-        error: 'unable to send coins'
-      });
-    }
+    });
   } else {
     return res.send({
       error: 'not enough balance'
@@ -383,10 +374,14 @@ router.get('/decodeinvoice', async (req, res) => {
   let {
     invoice
   } = req.body;
-  console.log(user.getUserId(), '/transactions', JSON.stringify(req.body));
-  let decodeInvoice = await lightningClient.decodePayReq({
+  console.log(user.getUserId(), '/decodeinvoice', JSON.stringify(req.body));
+  lightningClient.decodePayReq({
     pay_req: invoice
+  }, (err, decodeInvoice) => {
+    if (err) return res.send({
+      error: 'invoice not valid'
+    });
+    return res.send(decodeInvoice);
   });
-  return res.send(decodeInvoice !== null && decodeInvoice !== void 0 && decodeInvoice.payment_hash ? decodeInvoice : null);
 });
 module.exports = router;

@@ -161,9 +161,11 @@ class User {
     await this._redis.set('sato_user_' + this._login + '_' + this.hash(this._password), this._userid);
   }
 
-  async saveUserInvoice(invoice) {
+  async saveInvoiceGenerated(invoice, preimage) {
     let decodedInvoice = await this.decodeInvoice(invoice.payment_request);
     await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userid);
+    await this._redis.set('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, preimage);
+    await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodeInvoice.expiry);
     return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice.payment_request);
   }
 
@@ -171,18 +173,12 @@ class User {
     await this._redis.rpush('sato_invoices_paid_by_user_' + this._userid, payment_request);
   }
 
-  async saveUTXOSpent(txid) {
+  async saveOnChainTransaction(txid) {
     return await this._redis.rpush('sato_onchain_transactions_spent_by_user_' + this._userid, txid);
   }
 
   async savePaymentHashPaid(paymentHash, isPaid) {
     return await this._redis.set('sato_payment_hash_paid_' + paymentHash, isPaid);
-  }
-
-  async savePreimage(preimage, expiry) {
-    const paymentHash = crypto.createHash('sha256').update(Buffer.from(preimageHex, 'hex')).digest('hex');
-    await this._redis.set('sato_preimage_for_payment_hash_' + paymentHash, preimage);
-    await this._redis.expire('sato_preimage_for_payment_hash_' + paymentHash, expiry);
   }
 
   async lockFunds(payment_request) {
