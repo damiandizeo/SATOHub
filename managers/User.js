@@ -122,6 +122,11 @@ class User {
         pay_req: invoice
       }, (err, decodedInvoice) => {
         if (err) return resolve({});
+        delete decodedInvoice['descriptionhash'];
+        delete decodedInvoice['route_hints'];
+        delete decodedInvoice['features'];
+        delete decodedInvoice['payment_addr'];
+        decodedInvoice['timestamp'] = +decodedInvoice['timestamp'] * 1000;
         return resolve(decodedInvoice);
       });
     });
@@ -305,9 +310,6 @@ class User {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
       decodedInvoice.type = 'invoice_generated';
-      delete decodedInvoice['descriptionhash'];
-      delete decodedInvoice['route_hints'];
-      delete decodedInvoice['features'];
       invoices.push(decodedInvoice);
     }
 
@@ -362,9 +364,6 @@ class User {
     for (let invoice of userInvoicesPaid) {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_paid';
-      delete decodedInvoice['descriptionhash'];
-      delete decodedInvoice['route_hints'];
-      delete decodedInvoice['features'];
       invoicesPaid.push(decodedInvoice);
     }
 
@@ -379,9 +378,6 @@ class User {
     for (let invoice of lockedPayments) {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_pending';
-      delete decodedInvoice['descriptionhash'];
-      delete decodedInvoice['route_hints'];
-      delete decodedInvoice['features'];
       payments.push(lockedPayment);
     }
 

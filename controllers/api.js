@@ -168,7 +168,7 @@ router.post('/addinvoice', postLimiter, async (req, res) => {
   let preimage = user.makePreimage();
   lightningClient.addInvoice({
     value: amount,
-    description: description,
+    memo: description,
     expiry: expiry,
     r_preimage: Buffer.from(preimage, 'hex').toString('base64')
   }, async (err, invoice) => {
