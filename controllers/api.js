@@ -422,4 +422,62 @@ router.get('/transactions', async (req, res) => {
   console.log(user.getUserId(), 'invoicesPaid', JSON.stringify(invoicesPaid));
   res.send([...invoicesGenerated, ...onChainTransactions, ...invoicesPaid]);
 });
+router.get('/.well-known/lnurlp/:domain', async (req, res) => {
+  /* params */
+  let {
+    domain
+  } = req.params;
+
+  if (!domain) {
+    return res.send({
+      error: 'unable to find lightning address'
+    });
+  }
+
+  const callback = `http://3.136.84.168:5000/.well-known/lnurlp/${domain}`;
+  const metadata = [['text/identifier', callback], ['text/plain', `sats for ${domain}`]];
+  /* authorization */
+
+  let user = new _managers.User(redis, lightningClient);
+
+  if (!(await user.loadByDomain(domain))) {
+    return res.send({
+      error: 'unable to authorize user'
+    });
+  }
+
+  if (req.query.amount && req.query.amount > 0) {
+    let amount = req.query.amount / 1000;
+    let preimage = user.makePreimage();
+    lightningClient.addInvoice({
+      value: amount,
+      r_preimage: Buffer.from(preimage, 'hex').toString('base64')
+    }, async (err, invoice) => {
+      if (err) return res.send({
+        error: 'unable to add invoice'
+      });
+      await user.saveInvoiceGenerated(invoice.payment_request, preimage);
+      return res.status(200).json({
+        status: 'OK',
+        successAction: {
+          tag: 'message',
+          message: 'Thank You!'
+        },
+        routes: [],
+        pr: invoice.payment_request,
+        disposable: false
+      });
+    });
+  }
+
+  return res.status(200).json({
+    status: 'OK',
+    callback: callback,
+    tag: 'payRequest',
+    maxSendable: 250000000,
+    minSendable: 1,
+    metadata: JSON.stringify(metadata),
+    commentsAllowed: 0
+  });
+});
 module.exports = router;

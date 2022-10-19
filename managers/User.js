@@ -84,6 +84,17 @@ class User {
     return false;
   }
 
+  async loadByDomain(domain) {
+    let userid = await this._redis.get('sato_user_for_domain_' + domain);
+
+    if (userid) {
+      this._userid = userid;
+      return true;
+    }
+
+    return false;
+  }
+
   async generateAccessToken() {
     let buffer = crypto.randomBytes(20);
     this._access_token = buffer.toString('hex');
@@ -191,7 +202,7 @@ class User {
   }
 
   async setDomain(domain) {
-    return await this._redis.setnx('sato_domain_for_user_' + this._userid, domain);
+    return await this._redis.setnx('sato_user_for_domain_' + domain, this._userid);
   }
 
   async setDeviceToken(device) {
