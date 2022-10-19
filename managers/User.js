@@ -219,16 +219,18 @@ class User {
     let onChainTransactions = await this.getOnChainTransactions();
 
     for (let onChainTransaction of onChainTransactions) {
-      calculatedBalance += parseFloat(onChainTransaction.amount);
+      console.log('onChainTransaction.amount', +onChainTransaction.amount);
+      calculatedBalance += +onChainTransaction.amount;
     }
     /* balance from invoices paid */
 
 
     let invoices = await this.getInvoicesGenerated();
 
-    for (let invoice of invoices) {
-      if (invoice.ispaid) {
-        calculatedBalance += +invoice.num_satoshis;
+    for (let invoiceGenerated of invoices) {
+      if (invoiceGenerated.ispaid) {
+        console.log('invoiceGenerated.num_satoshis', +invoiceGenerated.num_satoshis);
+        calculatedBalance += +invoiceGenerated.num_satoshis;
       }
     }
     /* balance from invoices paid */
@@ -237,6 +239,7 @@ class User {
     let invoicesPaid = await this.getInvoicesPaid();
 
     for (let invoicePaid of invoicesPaid) {
+      console.log('invoice.num_satoshis', +invoicePaid.num_satoshis);
       calculatedBalance -= +invoicePaid.num_satoshis;
     }
     /* balance from locked payments */
@@ -245,6 +248,7 @@ class User {
     let lockedPayments = await this.getLockedPayments();
 
     for (let lockedPayment of lockedPayments) {
+      console.log('lockedPayment.num_satoshis', +lockedPayment.num_satoshis);
       calculatedBalance -= +lockedPayment.num_satoshis;
     }
 
