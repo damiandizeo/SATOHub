@@ -206,7 +206,7 @@ router.post('/payinvoice', async (req, res) => {
   console.log(user.getUserId(), 'balance', userBalance);
   lightningClient.decodePayReq({
     pay_req: invoice
-  }, async (err, decodeInvoice) => {
+  }, async (err, decodedInvoice) => {
     if (err || !decodedInvoice) {
       lock.releaseLock();
       return res.send({
@@ -228,7 +228,7 @@ router.post('/payinvoice', async (req, res) => {
     if (userBalance >= amount) {
       if (lightningIdentityPubKey === decodedInvoice.destination) {
         /* internal payment */
-        if (await user.getPaymentHashPaid(decodeInvoice.payment_hash)) {
+        if (await user.getPaymentHashPaid(decodedInvoice.payment_hash)) {
           lock.releaseLock();
           return res.send({
             error: 'invoice already paid'
@@ -236,9 +236,9 @@ router.post('/payinvoice', async (req, res) => {
         }
 
         await user.savePaidInvoice(invoice);
-        await user.savePaymentHashPaid(decodeInvoice.payment_hash, true);
+        await user.savePaymentHashPaid(decodedInvoice.payment_hash, true);
         await lock.releaseLock();
-        let preimage = await user.getPreimageByPaymentHash(decodeInvoice.payment_hash);
+        let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
           payment_request: invoice,
           payment_preimage: preimage
@@ -377,11 +377,11 @@ router.get('/decodeinvoice', async (req, res) => {
   console.log(user.getUserId(), '/decodeinvoice', JSON.stringify(req.body));
   lightningClient.decodePayReq({
     pay_req: invoice
-  }, (err, decodeInvoice) => {
+  }, (err, decodedInvoice) => {
     if (err) return res.send({
       error: 'invoice not valid'
     });
-    return res.send(decodeInvoice);
+    return res.send(decodedInvoice);
   });
 });
 module.exports = router;
