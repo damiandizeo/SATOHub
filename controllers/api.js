@@ -436,7 +436,6 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
 
   const callback = `http://3.136.84.168:5000/.well-known/lnurlp/${domain}`;
   const metadata = [['text/identifier', callback], ['text/plain', `sats for ${domain}`]];
-  console.log('callback', callback);
   /* authorization */
 
   let user = new _managers.User(redis, lightningClient);
@@ -469,16 +468,16 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
         disposable: false
       });
     });
+  } else {
+    return res.status(200).json({
+      status: 'OK',
+      callback: callback,
+      tag: 'payRequest',
+      maxSendable: 250000000,
+      minSendable: 1,
+      metadata: JSON.stringify(metadata),
+      commentsAllowed: 0
+    });
   }
-
-  return res.status(200).json({
-    status: 'OK',
-    callback: callback,
-    tag: 'payRequest',
-    maxSendable: 250000000,
-    minSendable: 1,
-    metadata: JSON.stringify(metadata),
-    commentsAllowed: 0
-  });
 });
 module.exports = router;
