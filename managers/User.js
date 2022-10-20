@@ -22,19 +22,19 @@ class User {
   constructor(redis, lightningClient) {
     this._redis = redis;
     this._lightningClient = lightningClient;
-    this._userid = false;
-    this._login = false;
+    this._userId = false;
+    this._user = false;
     this._password = false;
   }
   /* auth */
 
 
-  async create(userid = null, login = null, password = null) {
+  async create(userId = null, user = null, password = null) {
     let buffer = null;
 
-    if (!login) {
+    if (!user) {
       let buffer = crypto.randomBytes(10);
-      login = buffer.toString('hex');
+      user = buffer.toString('hex');
     }
 
     if (!password) {
@@ -42,27 +42,27 @@ class User {
       password = buffer.toString('hex');
     }
 
-    if (!userid) {
+    if (!userId) {
       buffer = crypto.randomBytes(24);
-      userid = buffer.toString('hex');
+      userId = buffer.toString('hex');
     }
 
-    this._login = login;
+    this._user = user;
     this._password = password;
-    this._userid = userid;
+    this._userId = userId;
     await this.saveUserToDatabase();
     return {
-      login,
+      user,
       password
     };
   }
 
-  async loadByLoginAndPassword(login, password) {
-    let userid = await this._redis.get('sato_user_' + login + '_' + this.hash(password));
+  async loadByUserAndPassword(user, password) {
+    let userId = await this._redis.get('sato_user_' + user + '_' + this.hash(password));
 
-    if (userid) {
-      this._userid = userid;
-      this._login = login;
+    if (userId) {
+      this._userId = userId;
+      this._user = user;
       this._password = password;
       await this.generateAccessToken();
       return true;
@@ -74,10 +74,10 @@ class User {
   async loadByAuthorization(authorization) {
     if (!authorization) return false;
     let access_token = authorization.replace('Bearer ', '');
-    let userid = await this._redis.get('sato_userid_for_' + access_token);
+    let userId = await this._redis.get('sato_userId_for_' + access_token);
 
-    if (userid) {
-      this._userid = userid;
+    if (userId) {
+      this._userId = userId;
       return true;
     }
 
@@ -85,10 +85,10 @@ class User {
   }
 
   async loadByDomain(domain) {
-    let userid = await this._redis.get('sato_user_for_domain_' + domain);
+    let userId = await this._redis.get('sato_user_for_domain_' + domain);
 
-    if (userid) {
-      this._userid = userid;
+    if (userId) {
+      this._userId = userId;
       return true;
     }
 
@@ -98,7 +98,7 @@ class User {
   async generateAccessToken() {
     let buffer = crypto.randomBytes(20);
     this._access_token = buffer.toString('hex');
-    await this._redis.set('sato_userid_for_' + this._access_token, this._userid);
+    await this._redis.set('sato_userId_for_' + this._access_token, this._userId);
   }
   /* utils */
 
@@ -165,32 +165,32 @@ class User {
   }
 
   async saveAddress(address) {
-    await this._redis.set('sato_address_for_user_' + this._userid, address);
+    await this._redis.set('sato_address_for_user_' + this._userId, address);
   }
 
   async saveBalance(balance) {
-    await this._redis.set('sato_balance_for_user_' + this._userid, balance);
+    await this._redis.set('sato_balance_for_user_' + this._userId, balance);
     await this._redis.expire(key, 1800);
   }
 
   async saveUserToDatabase() {
-    await this._redis.set('sato_user_' + this._login + '_' + this.hash(this._password), this._userid);
+    await this._redis.set('sato_user_' + this._user + '_' + this.hash(this._password), this._userId);
   }
 
   async saveInvoiceGenerated(invoice, preimage) {
     let decodedInvoice = await this.decodeInvoice(invoice);
-    await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userid);
+    await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userId);
     await this._redis.set('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, preimage);
     await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodedInvoice.expiry);
-    return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userid, invoice);
+    return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userId, invoice);
   }
 
   async savePaidInvoice(payment_request) {
-    await this._redis.rpush('sato_invoices_paid_by_user_' + this._userid, payment_request);
+    await this._redis.rpush('sato_invoices_paid_by_user_' + this._userId, payment_request);
   }
 
   async saveOnChainTransaction(txid) {
-    return await this._redis.rpush('sato_onchain_transactions_spent_by_user_' + this._userid, txid);
+    return await this._redis.rpush('sato_onchain_transactions_spent_by_user_' + this._userId, txid);
   }
 
   async savePaymentHashPaid(paymentHash, isPaid) {
@@ -198,27 +198,27 @@ class User {
   }
 
   async lockFunds(invoice) {
-    return this._redis.rpush('sato_locked_payments_for_user_' + this._userid, invoice);
+    return this._redis.rpush('sato_locked_payments_for_user_' + this._userId, invoice);
   }
 
   async setDomain(domain) {
-    await this._redis.setnx('sato_user_for_domain_' + domain, this._userid);
-    await this._redis.setnx('sato_domain_for_user_' + this._userid, domain);
+    await this._redis.setnx('sato_user_for_domain_' + domain, this._userId);
+    await this._redis.setnx('sato_domain_for_user_' + this._userId, domain);
     return true;
   }
 
   async setDeviceToken(device) {
-    return await this._redis.set('sato_device_token_for_user_' + this._userid, JSON.stringify(device));
+    return await this._redis.set('sato_device_token_for_user_' + this._userId, JSON.stringify(device));
   }
   /* getters */
 
 
   getUserId() {
-    return this._userid;
+    return this._userId;
   }
 
   getLogin() {
-    return this._login;
+    return this._user;
   }
 
   getPassword() {
@@ -230,7 +230,7 @@ class User {
   }
 
   async getAddress() {
-    return await this._redis.get('sato_address_for_user_' + this._userid);
+    return await this._redis.get('sato_address_for_user_' + this._userId);
   }
 
   async getBalance() {
@@ -289,15 +289,15 @@ class User {
 
 
   async clearBalanceCache() {
-    return this._redis.del('sato_balance_for_user_' + this._userid);
+    return this._redis.del('sato_balance_for_user_' + this._userId);
   }
 
   async unlockFunds(invoice) {
-    let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userid, 0, -1);
+    let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userId, 0, -1);
 
     for (let lockedPayment of lockedPayments) {
       if (lockedPayment != invoice) {
-        await this._redis.rpush('sato_locked_payments_for_user_' + this._userid, lockedPayment);
+        await this._redis.rpush('sato_locked_payments_for_user_' + this._userId, lockedPayment);
       }
     }
   }
@@ -327,7 +327,7 @@ class User {
 
   async getInvoicesGenerated() {
     let invoices = [];
-    let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userid, 0, -1);
+    let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userId, 0, -1);
 
     for (let invoice of userInvoices) {
       let decodedInvoice = await this.decodeInvoice(invoice);
@@ -352,7 +352,7 @@ class User {
   async getOnChainTransactions() {
     let onChainTransactions = [];
     let address = await this.getAddress();
-    let txsIds = await this._redis.lrange('sato_onchain_transactions_spent_by_user_' + this._userid, 0, -1);
+    let txsIds = await this._redis.lrange('sato_onchain_transactions_spent_by_user_' + this._userId, 0, -1);
     return new Promise((resolve, reject) => {
       this._lightningClient.getTransactions({}, (err, onChainTransactionsRes) => {
         if (err) return resolve([]);
@@ -382,11 +382,18 @@ class User {
 
   async getInvoicesPaid() {
     let invoicesPaid = [];
-    let userInvoicesPaid = await this._redis.lrange('sato_invoices_paid_by_user_' + this._userid, 0, -1);
+    let userInvoicesPaid = await this._redis.lrange('sato_invoices_paid_by_user_' + this._userId, 0, -1);
 
     for (let invoice of userInvoicesPaid) {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_paid';
+      let payerUserId = await this._redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
+
+      if (payerUserId) {
+        let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
+        if (payerDomain) decodedInvoice.domain = payerDomain;
+      }
+
       invoicesPaid.push(decodedInvoice);
     }
 
@@ -395,7 +402,7 @@ class User {
 
   async getLockedPayments() {
     let payments = [];
-    let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userid, 0, -1);
+    let lockedPayments = await this._redis.lrange('sato_locked_payments_for_user_' + this._userId, 0, -1);
     let result = [];
 
     for (let invoice of lockedPayments) {

@@ -110,16 +110,16 @@ const loadAuthorizedUser = async authorization => {
 router.post('/create', postLimiter, async (req, res) => {
   /* params */
   const {
-    partnerid,
-    userid,
-    login,
+    partnerId,
+    userId,
+    user,
     password
   } = req.body;
   console.log(userid, '/create', JSON.stringify(req.body));
 
-  if (partnerid == 'satowallet') {
+  if (partnerId == 'satowallet') {
     let user = new _managers.User(redis, lightningClient);
-    let newUser = await user.create(userid, login, password);
+    let newUser = await user.create(userId, user, password);
     return res.send({
       secret: `${newUser.login}:${newUser.password}`
     });
@@ -140,7 +140,7 @@ router.post('/login', postLimiter, async (req, res) => {
   if (login && password) {
     let user = new _managers.User(redis, lightningClient);
 
-    if ((await user.loadByLoginAndPassword(login, password)) == true) {
+    if ((await user.loadByUserAndPassword(login, password)) == true) {
       return res.send({
         access_token: user.getAccessToken()
       });
