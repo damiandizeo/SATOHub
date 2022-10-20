@@ -202,7 +202,9 @@ class User {
   }
 
   async setDomain(domain) {
-    return await this._redis.setnx('sato_user_for_domain_' + domain, this._userid);
+    await this._redis.setnx('sato_user_for_domain_' + domain, this._userid);
+    await this._redis.setnx('sato_domain_for_user_' + this._userid, domain);
+    return true;
   }
 
   async setDeviceToken(device) {
@@ -331,7 +333,17 @@ class User {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
       decodedInvoice.type = 'invoice_generated';
-      invoices.push(decodedInvoice);
+
+      if (decodedInvoice.ispaid == true) {
+        let payerUserId = await this._redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
+
+        if (payerUserId) {
+          let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
+          if (payerDomain) decodeInvoice.domain = payerDomain;
+        }
+
+        invoices.push(decodedInvoice);
+      }
     }
 
     return invoices;
