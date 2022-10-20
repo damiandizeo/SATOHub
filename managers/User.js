@@ -339,7 +339,7 @@ class User {
 
         if (payerUserId) {
           let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
-          if (payerDomain) decodeInvoice.domain = payerDomain;
+          if (payerDomain) decodedInvoice.domain = payerDomain;
         }
 
         invoices.push(decodedInvoice);
