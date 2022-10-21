@@ -97,6 +97,22 @@ function updateDescribeGraph() {
 
 updateDescribeGraph();
 setInterval(updateDescribeGraph, 60000);
+
+const sendPN = async (accountId, type, title, desc) => {
+  await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
+    method: 'POST',
+    body: JSON.stringify({
+      accountId: accountId,
+      type: type,
+      title: title,
+      desc: desc
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+};
+
 setInterval(async () => {
   const newPaymentRequest = await fetch('https://api.bysato.com/wallet_v2/onramp/pendings.php');
   const parsedNewPaymentRequest = await newPaymentRequest.json();
@@ -104,7 +120,7 @@ setInterval(async () => {
   if (parsedNewPaymentRequest && parsedNewPaymentRequest.length > 0) {
     for (let paymentRequest of parsedNewPaymentRequest) {
       let user = new _managers.User(redis, lightningClient);
-      user._userId = paymentRequest.custodianAccountId;
+      user._userId = paymentRequest.accountId;
       let amount = +paymentRequest.payload.sats;
       let preimage = user.makePreimage();
       lightningClient.addInvoice({
@@ -127,6 +143,7 @@ setInterval(async () => {
               'Content-Type': 'application/json'
             }
           });
+          await sendPN(paymentRequest.accountId, 'buy_btc_success', 'Purchase completed', `You received +${amount} SATs`);
         });
       });
     }
