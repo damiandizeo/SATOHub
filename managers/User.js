@@ -315,7 +315,7 @@ class User {
     const ispaid = invoice.settled;
 
     if (ispaid) {
-      await this.savePaymentHashPaid(paymentHash, true);
+      await this.savePaymentHashPaid(paymentHash);
       await this.clearBalanceCache();
     }
 

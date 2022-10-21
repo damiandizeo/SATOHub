@@ -45,7 +45,24 @@ redis.info((err, info) => {
     process.exit(5);
   }
 });
+/* push notifications */
+
+const sendPN = async (accountId, type, title, desc) => {
+  await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
+    method: 'POST',
+    body: JSON.stringify({
+      accountId: accountId,
+      type: type,
+      title: title,
+      desc: desc
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+};
 /* lightning apis */
+
 
 lightningClient.getInfo({}, (err, info) => {
   if (err) {
@@ -78,12 +95,17 @@ call.on('data', response => {
 let subscribeInvoicesCall = lightningClient.subscribeInvoices({});
 subscribeInvoicesCall.on('data', async invoice => {
   if (invoice.state === 'SETTLED') {
+    /* send PN to user */
     let user = new _managers.User(redis, lightningClient);
     user._userId = await user.getUserIdByPaymentHash(paymentHash);
-    user.savePaymentHashPaid(paymentHash, true);
-    /* send PN to user id */
 
-    await sendPN(user._userId, 'payment_received', 'Your invoice was paid', `You received +${invoice.num_satoshis} SATs`);
+    if (user._userId) {
+      await sendPN(user._userId, 'payment_received', 'Your invoice was paid', `You received +${invoice.value} SATs`);
+    }
+
+    let payerUser = new _managers.User(redis, lightningClient);
+    payerUser._userId = 'external_node';
+    await payerUser.savePaymentHashPaid(invoice.r_hash);
   }
 });
 
@@ -97,22 +119,6 @@ function updateDescribeGraph() {
 
 updateDescribeGraph();
 setInterval(updateDescribeGraph, 60000);
-
-const sendPN = async (accountId, type, title, desc) => {
-  await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
-    method: 'POST',
-    body: JSON.stringify({
-      accountId: accountId,
-      type: type,
-      title: title,
-      desc: desc
-    }),
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
-};
-
 setInterval(async () => {
   const newPaymentRequest = await fetch('https://api.bysato.com/wallet_v2/onramp/pendings.php');
   const parsedNewPaymentRequest = await newPaymentRequest.json();
@@ -295,7 +301,7 @@ router.post('/payinvoice', async (req, res) => {
         }
 
         await user.savePaidInvoice(invoice);
-        await user.savePaymentHashPaid(decodedInvoice.payment_hash, user.getUserId());
+        await user.savePaymentHashPaid(decodedInvoice.payment_hash);
         await lock.releaseLock();
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
