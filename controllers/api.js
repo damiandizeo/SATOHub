@@ -308,6 +308,7 @@ router.post('/payinvoice', async (req, res) => {
         await user.savePaymentHashPaid(decodedInvoice.payment_hash);
         await lock.releaseLock();
         let payeeUserId = redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
+        console.log('payeeUserId', payeeUserId);
         await sendPN(payeeUserId, 'payment_received', 'Your invoice was paid', `You received +${amount} SATs`);
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
