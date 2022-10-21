@@ -61,7 +61,7 @@ const sendPN = async (accountId, type, title, desc) => {
       'Content-Type': 'application/json'
     }
   });
-  sendPNRes = sendPNRes.json();
+  sendPNRes = await sendPNRes.json();
   console.log('PN status', sendPNRes);
 };
 /* lightning apis */
