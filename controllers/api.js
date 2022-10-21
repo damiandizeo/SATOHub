@@ -132,7 +132,10 @@ setInterval(async () => {
           pay_req: invoice.payment_request
         }, async (err, decodedInvoice) => {
           await user.saveInvoiceGenerated(invoice.payment_request, preimage);
-          await user.savePaymentHashPaid(decodedInvoice.payment_hash, true);
+          let payerUser = new _managers.User(redis, lightningClient);
+          payerUser._userId = 'sato';
+          await payerUser.savePaidInvoice(invoice.payment_request);
+          await payerUser.savePaymentHashPaid(decodedInvoice.payment_hash);
           await fetch('https://api.bysato.com/wallet_v2/onramp/setInvoice.php', {
             method: 'POST',
             body: JSON.stringify({
@@ -284,7 +287,7 @@ router.post('/payinvoice', async (req, res) => {
         console.log(user.getUserId(), 'invoice amount', 'internal payment');
         /* internal payment */
 
-        if (await user.getPaymentHashPaid(decodedInvoice.payment_hash)) {
+        if (await user.getPayerByPaymentHash(decodedInvoice.payment_hash)) {
           lock.releaseLock();
           return res.send({
             error: 'invoice already paid'
@@ -292,7 +295,7 @@ router.post('/payinvoice', async (req, res) => {
         }
 
         await user.savePaidInvoice(invoice);
-        await user.savePaymentHashPaid(decodedInvoice.payment_hash, true);
+        await user.savePaymentHashPaid(decodedInvoice.payment_hash, user.getUserId());
         await lock.releaseLock();
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
@@ -404,25 +407,6 @@ router.post('/domain', async (req, res) => {
   } = req.body;
   console.log(user.getUserId(), '/domain', JSON.stringify(req.body));
   await user.setDomain(domain);
-  return res.send(true);
-});
-router.post('/devicetoken', async (req, res) => {
-  /* authorization */
-  let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res.send({
-    error: 'unable to authorize user'
-  });
-  /* params */
-
-  let {
-    platform,
-    deviceToken
-  } = req.body;
-  console.log(user.getUserId(), '/devicetoken', JSON.stringify(req.body));
-  await user.setDeviceToken({
-    platform: platform,
-    deviceToken: deviceToken
-  });
   return res.send(true);
 });
 router.get('/address', async (req, res) => {

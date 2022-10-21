@@ -177,24 +177,25 @@ class User {
     await this._redis.set('sato_user_' + this._user + '_' + this.hash(this._password), this._userId);
   }
 
+  async saveOnChainTransaction(txid) {
+    return await this._redis.rpush('sato_onchain_transactions_spent_by_user_' + this._userId, txid);
+  }
+
   async saveInvoiceGenerated(invoice, preimage) {
     let decodedInvoice = await this.decodeInvoice(invoice);
     await this._redis.set('sato_user_for_payment_hash_' + decodedInvoice.payment_hash, this._userId);
     await this._redis.set('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, preimage);
     await this._redis.expire('sato_preimage_for_payment_hash_' + decodedInvoice.payment_hash, +decodedInvoice.expiry);
-    return await this._redis.rpush('sato_invoices_generated_by_user_' + this._userId, invoice);
+    await this._redis.rpush('sato_invoices_generated_by_user_' + this._userId, invoice);
+    return true;
   }
 
-  async savePaidInvoice(payment_request) {
-    await this._redis.rpush('sato_invoices_paid_by_user_' + this._userId, payment_request);
+  async savePaidInvoice(paymentRequest) {
+    return await this._redis.rpush('sato_invoices_paid_by_user_' + this._userId, paymentRequest);
   }
 
-  async saveOnChainTransaction(txid) {
-    return await this._redis.rpush('sato_onchain_transactions_spent_by_user_' + this._userId, txid);
-  }
-
-  async savePaymentHashPaid(paymentHash, isPaid) {
-    return await this._redis.set('sato_payment_hash_paid_' + paymentHash, isPaid);
+  async savePaymentHashPaid(paymentHash) {
+    return await this._redis.set('sato_user_for_payment_hash_paid_' + paymentHash, this._userId);
   }
 
   async lockFunds(invoice) {
@@ -205,10 +206,6 @@ class User {
     await this._redis.setnx('sato_user_for_domain_' + domain, this._userId);
     await this._redis.setnx('sato_domain_for_user_' + this._userId, domain);
     return true;
-  }
-
-  async setDeviceToken(device) {
-    return await this._redis.set('sato_device_token_for_user_' + this._userId, JSON.stringify(device));
   }
   /* getters */
 
@@ -276,8 +273,8 @@ class User {
     return await this._redis.get('sato_user_for_payment_hash_' + paymentHash);
   }
 
-  async getPaymentHashPaid(paymentHash) {
-    let ispaid = await this._redis.get('sato_payment_hash_paid_' + paymentHash);
+  async getPayerByPaymentHash(paymentHash) {
+    let ispaid = await this._redis.get('sato_user_for_payment_hash_paid_' + paymentHash);
     if (ispaid == true || ispaid === 'true') return true;
     return false;
   }
@@ -325,30 +322,6 @@ class User {
     return ispaid;
   }
 
-  async getInvoicesGenerated() {
-    let invoices = [];
-    let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userId, 0, -1);
-
-    for (let invoice of userInvoices) {
-      let decodedInvoice = await this.decodeInvoice(invoice);
-      decodedInvoice.ispaid = (await this.getPaymentHashPaid(decodedInvoice.payment_hash)) || false;
-      decodedInvoice.type = 'invoice_generated';
-
-      if (decodedInvoice.ispaid == true) {
-        let payerUserId = await this._redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
-
-        if (payerUserId) {
-          let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
-          if (payerDomain) decodedInvoice.domain = payerDomain;
-        }
-
-        invoices.push(decodedInvoice);
-      }
-    }
-
-    return invoices;
-  }
-
   async getOnChainTransactions() {
     let onChainTransactions = [];
     let address = await this.getAddress();
@@ -380,6 +353,36 @@ class User {
     });
   }
 
+  async getInvoicesGenerated() {
+    let invoices = [];
+    let userInvoices = await this._redis.lrange('sato_invoices_generated_by_user_' + this._userId, 0, -1);
+
+    for (let invoice of userInvoices) {
+      let decodedInvoice = await this.decodeInvoice(invoice);
+      let payerId = await this.getPayerByPaymentHash(decodedInvoice.payment_hash);
+      decodedInvoice.type = 'invoice_generated';
+
+      if (payerId) {
+        decodedInvoice.ispaid = true;
+
+        if (payer == 'sato') {
+          decodedInvoice.domain = 'sato';
+        } else {
+          let payerUserId = await this._redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
+
+          if (payerUserId) {
+            let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
+            if (payerDomain) decodedInvoice.domain = payerDomain;
+          }
+        }
+
+        invoices.push(decodedInvoice);
+      }
+    }
+
+    return invoices;
+  }
+
   async getInvoicesPaid() {
     let invoicesPaid = [];
     let userInvoicesPaid = await this._redis.lrange('sato_invoices_paid_by_user_' + this._userId, 0, -1);
@@ -387,7 +390,7 @@ class User {
     for (let invoice of userInvoicesPaid) {
       let decodedInvoice = await this.decodeInvoice(invoice);
       decodedInvoice.type = 'invoice_paid';
-      let payerUserId = await this._redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
+      let payerUserId = await this.getUserIdByPaymentHash(decodedInvoice.payment_hash);
 
       if (payerUserId) {
         let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
