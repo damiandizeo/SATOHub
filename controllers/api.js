@@ -156,7 +156,7 @@ setInterval(async () => {
               'Content-Type': 'application/json'
             }
           });
-          await sendPN(paymentRequest.accountId, 'buy_btc_success', 'Purchase completed', `You received +${amount} SATs`);
+          await sendPN(paymentRequest.accountId, 'sato_btc_purchased', 'Purchase completed', `You received +${amount} SATs`);
         });
       });
     }
