@@ -47,15 +47,15 @@ redis.info((err, info) => {
 });
 /* push notifications */
 
-const sendPN = async (accountId, type, title, desc) => {
-  console.log('PN', accountId, type, title, desc);
+const sendPN = async (accountId, title, desc, payload) => {
+  console.log('PN', accountId, title, desc, payload);
   let sendPNRes = await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
     method: 'POST',
     body: JSON.stringify({
       accountId: accountId,
-      type: type,
       title: title,
-      desc: desc
+      desc: desc,
+      payload: payload
     }),
     headers: {
       'Content-Type': 'application/json'
@@ -103,7 +103,9 @@ subscribeInvoicesCall.on('data', async invoice => {
     user._userId = await user.getUserIdByPaymentHash(paymentHash);
 
     if (user._userId) {
-      await sendPN(user._userId, 'invoice_paid', 'Your invoice was paid', `You received +${invoice.value} SATs`);
+      await sendPN(user._userId, 'Your invoice was paid', `You received +${invoice.value} SATs`, {
+        type: 'invoice_paid'
+      });
     }
 
     let payerUser = new _managers.User(redis, lightningClient);
@@ -156,7 +158,9 @@ setInterval(async () => {
               'Content-Type': 'application/json'
             }
           });
-          await sendPN(paymentRequest.accountId, 'sato_btc_purchased', 'Purchase completed', `You received +${amount} SATs`);
+          await sendPN(paymentRequest.accountId, 'Purchase completed', `You received +${amount} SATs`, {
+            type: 'sato_btc_purchased'
+          });
         });
       });
     }
@@ -308,7 +312,9 @@ router.post('/payinvoice', async (req, res) => {
         await user.savePaymentHashPaid(decodedInvoice.payment_hash);
         await lock.releaseLock();
         let payeeUserId = await user.getUserIdByPaymentHash(decodedInvoice.payment_hash);
-        await sendPN(payeeUserId, 'invoice_paid', 'Your invoice was paid', `You received +${amount} SATs`);
+        await sendPN(payeeUserId, 'Your invoice was paid', `You received +${amount} SATs`, {
+          type: 'invoice_paid'
+        });
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
           payment_request: invoice,
