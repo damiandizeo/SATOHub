@@ -76,14 +76,14 @@ call.on('data', response => {
   });
 });
 let subscribeInvoicesCall = lightningClient.subscribeInvoices({});
-subscribeInvoicesCall.on('data', async response => {
-  if (response.state === 'SETTLED') {
+subscribeInvoicesCall.on('data', async invoice => {
+  if (invoice.state === 'SETTLED') {
     let user = new _managers.User(redis, lightningClient);
     user._userId = await user.getUserIdByPaymentHash(paymentHash);
     user.savePaymentHashPaid(paymentHash, true);
     /* send PN to user id */
 
-    console.log(userId);
+    await sendPN(user._userId, 'payment_received', 'Your invoice was paid', `You received +${invoice.num_satoshis} SATs`);
   }
 });
 
@@ -192,11 +192,11 @@ router.post('/login', postLimiter, async (req, res) => {
   console.log('/login', JSON.stringify(req.body));
 
   if (user && password) {
-    let user = new _managers.User(redis, lightningClient);
+    let authUser = new _managers.User(redis, lightningClient);
 
-    if ((await user.loadByUserAndPassword(user, password)) == true) {
+    if ((await authUser.loadByUserAndPassword(user, password)) == true) {
       return res.send({
-        access_token: user.getAccessToken()
+        access_token: authUser.getAccessToken()
       });
     }
   }
