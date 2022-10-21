@@ -48,7 +48,7 @@ redis.info((err, info) => {
 /* push notifications */
 
 const sendPN = async (accountId, type, title, desc) => {
-  await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
+  let sendPNRes = await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
     method: 'POST',
     body: JSON.stringify({
       accountId: accountId,
@@ -60,6 +60,8 @@ const sendPN = async (accountId, type, title, desc) => {
       'Content-Type': 'application/json'
     }
   });
+  sendPNRes = sendPNRes.json();
+  console.log('/sendPN', sendPNRes);
 };
 /* lightning apis */
 
@@ -134,18 +136,16 @@ setInterval(async () => {
         value: amount,
         r_preimage: Buffer.from(preimage, 'hex').toString('base64')
       }, async (err, invoice) => {
-        console.log(user._userId, 'invoice', invoice);
         if (err) return;
         lightningClient.decodePayReq({
           pay_req: invoice.payment_request
         }, async (err, decodedInvoice) => {
-          console.log(user._userId, 'decodedInvoice', decodedInvoice);
           await user.saveInvoiceGenerated(invoice.payment_request, preimage);
           let payerUser = new _managers.User(redis, lightningClient);
           payerUser._userId = 'sato';
           await payerUser.savePaidInvoice(invoice.payment_request);
           await payerUser.savePaymentHashPaid(decodedInvoice.payment_hash);
-          console.log('setInvoice.php', await fetch('https://api.bysato.com/wallet_v2/onramp/setInvoice.php', {
+          await fetch('https://api.bysato.com/wallet_v2/onramp/setInvoice.php', {
             method: 'POST',
             body: JSON.stringify({
               id: paymentRequest['_id'],
@@ -154,8 +154,8 @@ setInterval(async () => {
             headers: {
               'Content-Type': 'application/json'
             }
-          }));
-          console.log('send PN', await sendPN(paymentRequest.accountId, 'buy_btc_success', 'Purchase completed', `You received +${amount} SATs`));
+          });
+          await sendPN(paymentRequest.accountId, 'buy_btc_success', 'Purchase completed', `You received +${amount} SATs`);
         });
       });
     }
