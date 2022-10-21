@@ -48,6 +48,7 @@ redis.info((err, info) => {
 /* push notifications */
 
 const sendPN = async (accountId, type, title, desc) => {
+  console.log('PN', accountId, type, title, desc);
   let sendPNRes = await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
     method: 'POST',
     body: JSON.stringify({
@@ -61,7 +62,7 @@ const sendPN = async (accountId, type, title, desc) => {
     }
   });
   sendPNRes = sendPNRes.json();
-  console.log('/sendPN', sendPNRes);
+  console.log('PN status', sendPNRes);
 };
 /* lightning apis */
 
@@ -306,6 +307,8 @@ router.post('/payinvoice', async (req, res) => {
         await user.savePaidInvoice(invoice);
         await user.savePaymentHashPaid(decodedInvoice.payment_hash);
         await lock.releaseLock();
+        let payeeUserId = redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
+        await sendPN(payeeUserId, 'payment_received', 'Your invoice was paid', `You received +${amount} SATs`);
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
           payment_request: invoice,
