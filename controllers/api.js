@@ -103,24 +103,21 @@ setInterval(async () => {
 
   if (parsedNewPaymentRequest && parsedNewPaymentRequest.length > 0) {
     for (let paymentRequest of parsedNewPaymentRequest) {
-      console.log('paymentRequest', paymentRequest);
       let user = new _managers.User(redis, lightningClient);
-      user._userId = paymentRequest.custodianUserId;
+      user._userId = paymentRequest.custodianAccountId;
       let amount = +paymentRequest.payload.sats;
       let preimage = user.makePreimage();
       lightningClient.addInvoice({
         value: amount,
         r_preimage: Buffer.from(preimage, 'hex').toString('base64')
       }, async (err, invoice) => {
-        console.log('invoice', amount, invoice);
         if (err) return;
         lightningClient.decodePayReq({
           pay_req: invoice.payment_request
         }, async (err, decodedInvoice) => {
-          console.log('decodedInvoice', decodedInvoice);
           await user.saveInvoiceGenerated(invoice.payment_request, preimage);
           await user.savePaymentHashPaid(decodedInvoice.payment_hash, true);
-          const newPaymentRequest = await fetch('https://api.bysato.com/wallet_v2/onramp/setInvoice.php', {
+          await fetch('https://api.bysato.com/wallet_v2/onramp/setInvoice.php', {
             method: 'POST',
             body: JSON.stringify({
               id: paymentRequest['_id'],
@@ -130,13 +127,11 @@ setInterval(async () => {
               'Content-Type': 'application/json'
             }
           });
-          const parsedNewPaymentRequest = await newPaymentRequest.json();
-          console.log('parsedNewPaymentRequest', parsedNewPaymentRequest);
         });
       });
     }
   }
-}, 15000);
+}, 5000);
 /* express routers */
 
 const loadAuthorizedUser = async authorization => {
