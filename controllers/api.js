@@ -158,7 +158,7 @@ router.post('/create', postLimiter, async (req, res) => {
     let user = new _managers.User(redis, lightningClient);
     let newUser = await user.create(userId, user, password);
     return res.send({
-      secret: `${newUser.login}:${newUser.password}`
+      secret: `${newUser.user}:${newUser.password}`
     });
   } else {
     return res.send({
@@ -169,15 +169,15 @@ router.post('/create', postLimiter, async (req, res) => {
 router.post('/login', postLimiter, async (req, res) => {
   /* params */
   const {
-    login,
+    user,
     password
   } = req.body;
   console.log('/login', JSON.stringify(req.body));
 
-  if (login && password) {
+  if (user && password) {
     let user = new _managers.User(redis, lightningClient);
 
-    if ((await user.loadByUserAndPassword(login, password)) == true) {
+    if ((await user.loadByUserAndPassword(user, password)) == true) {
       return res.send({
         access_token: user.getAccessToken()
       });
