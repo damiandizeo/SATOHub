@@ -10,6 +10,8 @@ const expressRateLimit = require('express-rate-limit');
 const Redis = require('ioredis');
 
 const crypto = require('crypto');
+
+const fetch = require('node-fetch');
 /* config */
 
 
