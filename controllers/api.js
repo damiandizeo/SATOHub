@@ -103,7 +103,7 @@ subscribeInvoicesCall.on('data', async invoice => {
     user._userId = await user.getUserIdByPaymentHash(paymentHash);
 
     if (user._userId) {
-      await sendPN(user._userId, 'payment_received', 'Your invoice was paid', `You received +${invoice.value} SATs`);
+      await sendPN(user._userId, 'invoice_paid', 'Your invoice was paid', `You received +${invoice.value} SATs`);
     }
 
     let payerUser = new _managers.User(redis, lightningClient);
@@ -308,8 +308,7 @@ router.post('/payinvoice', async (req, res) => {
         await user.savePaymentHashPaid(decodedInvoice.payment_hash);
         await lock.releaseLock();
         let payeeUserId = await user.getUserIdByPaymentHash(decodedInvoice.payment_hash);
-        console.log('payeeUserId', payeeUserId);
-        await sendPN(payeeUserId, 'payment_received', 'Your invoice was paid', `You received +${amount} SATs`);
+        await sendPN(payeeUserId, 'invoice_paid', 'Your invoice was paid', `You received +${amount} SATs`);
         let preimage = await user.getPreimageByPaymentHash(decodedInvoice.payment_hash);
         return res.send({
           payment_request: invoice,
