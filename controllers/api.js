@@ -115,7 +115,7 @@ setInterval(async () => {
         console.log('invoice', amount, invoice);
         if (err) return;
         lightningClient.decodePayReq({
-          pay_req: invoice
+          pay_req: invoice.payment_request
         }, async (err, decodedInvoice) => {
           console.log('decodedInvoice', decodedInvoice);
           await user.saveInvoiceGenerated(invoice.payment_request, preimage);
