@@ -357,21 +357,17 @@ class User {
 
     for (let invoice of userInvoices) {
       let decodedInvoice = await this.decodeInvoice(invoice);
-      let payerId = await this.getPayerByPaymentHash(decodedInvoice.payment_hash);
+      let payerUserId = await this.getPayerByPaymentHash(decodedInvoice.payment_hash);
       decodedInvoice.type = 'invoice_generated';
 
-      if (payerId) {
+      if (payerUserId) {
         decodedInvoice.ispaid = true;
 
-        if (payer == 'sato') {
+        if (payerUserId == 'sato') {
           decodedInvoice.domain = 'sato';
         } else {
-          let payerUserId = await this._redis.get('sato_user_for_payment_hash_' + decodedInvoice.payment_hash);
-
-          if (payerUserId) {
-            let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
-            if (payerDomain) decodedInvoice.domain = payerDomain;
-          }
+          let payerDomain = await this._redis.get('sato_domain_for_user_' + payerUserId);
+          if (payerDomain) decodedInvoice.domain = payerDomain;
         }
 
         invoices.push(decodedInvoice);
