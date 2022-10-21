@@ -77,7 +77,7 @@ let subscribeInvoicesCall = lightningClient.subscribeInvoices({});
 subscribeInvoicesCall.on('data', async response => {
   if (response.state === 'SETTLED') {
     let user = new _managers.User(redis, lightningClient);
-    user._userid = await user.getUserIdByPaymentHash(paymentHash);
+    user._userId = await user.getUserIdByPaymentHash(paymentHash);
     user.savePaymentHashPaid(paymentHash, true);
     /* send PN to user id */
 
@@ -94,7 +94,47 @@ function updateDescribeGraph() {
 }
 
 updateDescribeGraph();
-setInterval(updateDescribeGraph, 120000);
+setInterval(updateDescribeGraph, 60000);
+setInterval(async () => {
+  const newPaymentRequest = await fetch('https://api.bysato.com/wallet_v2/onramp/pendings.php');
+  const parsedNewPaymentRequest = await newPaymentRequest.json();
+
+  if (parsedNewPaymentRequest && parsedNewPaymentRequest.length > 0) {
+    for (let paymentRequest of parsedNewPaymentRequest) {
+      console.log('paymentRequest', paymentRequest);
+      let user = new _managers.User(redis, lightningClient);
+      user._userId = paymentRequest.custodianUserId;
+      let amount = +paymentRequest.payload.sats;
+      let preimage = user.makePreimage();
+      lightningClient.addInvoice({
+        value: amount,
+        r_preimage: Buffer.from(preimage, 'hex').toString('base64')
+      }, async (err, invoice) => {
+        console.log('invoice', amount, invoice);
+        if (err) return;
+        lightningClient.decodePayReq({
+          pay_req: invoice
+        }, async (err, decodedInvoice) => {
+          console.log('decodedInvoice', decodedInvoice);
+          await user.saveInvoiceGenerated(invoice.payment_request, preimage);
+          await user.savePaymentHashPaid(decodedInvoice.payment_hash, true);
+          const newPaymentRequest = await fetch('https://api.bysato.com/wallet_v2/onramp/setInvoice.php', {
+            method: 'POST',
+            body: JSON.stringify({
+              id: paymentRequest['_id'],
+              invoice: invoice.payment_request
+            }),
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          const parsedNewPaymentRequest = await newPaymentRequest.json();
+          console.log('parsedNewPaymentRequest', parsedNewPaymentRequest);
+        });
+      });
+    }
+  }
+}, 15000);
 /* express routers */
 
 const loadAuthorizedUser = async authorization => {
@@ -115,7 +155,7 @@ router.post('/create', postLimiter, async (req, res) => {
     user,
     password
   } = req.body;
-  console.log(userid, '/create', JSON.stringify(req.body));
+  console.log(userId, '/create', JSON.stringify(req.body));
 
   if (partnerId == 'satowallet') {
     let user = new _managers.User(redis, lightningClient);
