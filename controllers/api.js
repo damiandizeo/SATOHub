@@ -49,7 +49,7 @@ redis.info((err, info) => {
 
 const sendPN = async (accountId, title, desc, payload) => {
   console.log('PN', accountId, title, desc, payload);
-  let sendPNRes = await fetch('https://api.bysato.com/wallet_v2/messages/sendPN.php', {
+  let sendPNRes = await fetch('https://api.bysato.com/wallet_v2/messaging/sendPN.php', {
     method: 'POST',
     body: JSON.stringify({
       accountId: accountId,
