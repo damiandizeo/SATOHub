@@ -427,6 +427,21 @@ router.post('/domain', async (req, res) => {
   await user.setDomain(domain);
   return res.send(true);
 });
+router.post('/addproduct', async (req, res) => {
+  /* authorization */
+  let user = await loadAuthorizedUser(req.headers.authorization);
+  if (!user) return res.send({
+    error: 'unable to authorize user'
+  });
+  /* params */
+
+  let {
+    productId
+  } = req.body;
+  console.log(user.getUserId(), '/addproduct', JSON.stringify(req.body));
+  await user.addProduct(productId);
+  return res.send(true);
+});
 router.get('/address', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
@@ -491,6 +506,12 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
     });
   }
 
+  let amount = 0;
+
+  if (req.query.amount && req.query.amount > 0) {
+    amount = req.query.amount;
+  }
+
   const callback = `http://3.136.84.168:5000/.well-known/lnurlp/${domain}`;
   const metadata = [['text/identifier', callback], ['text/plain', `sats for ${domain}`]];
   /* authorization */
@@ -504,8 +525,12 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
     });
   }
 
-  if (req.query.amount && req.query.amount > 0) {
-    let amount = req.query.amount / 1000;
+  if (domain.includes('product_')) {
+    amount = 1000 * 1000; // sats to msats
+  }
+
+  if (amount > 0) {
+    let amount = amount / 1000;
     let preimage = user.makePreimage();
     lightningClient.addInvoice({
       value: amount,

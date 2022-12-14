@@ -207,6 +207,11 @@ class User {
     await this._redis.setnx('sato_domain_for_user_' + this._userId, domain);
     return true;
   }
+
+  async addProduct(productId) {
+    await this._redis.setnx('sato_user_for_domain_' + productId, this._userId);
+    return true;
+  }
   /* getters */
 
 
