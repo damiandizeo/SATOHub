@@ -366,7 +366,7 @@ router.post('/invoicepaid', async (req, res) => {
     payment_hash
   } = req.body;
   console.log('/invoicepaid', JSON.stringify(req.body));
-  let payerId = await redis.get('sato_user_for_payment_hash_paid_' + paymentHash);
+  let payerId = await redis.get('sato_user_for_payment_hash_paid_' + payment_hash);
   return res.send({
     paid: payerId ? true : false
   });
