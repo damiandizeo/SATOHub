@@ -356,6 +356,22 @@ router.post('/payinvoice', async (req, res) => {
     }
   });
 });
+router.post('/invoicepaid', async (req, res) => {
+  /* authorization */
+  let user = await loadAuthorizedUser(req.headers.authorization);
+  if (!user) return res.send({
+    error: 'unable to authorize user'
+  });
+  /* params */
+
+  let {
+    payment_hash
+  } = req.body;
+  let payerId = await user.getPayerByPaymentHash(payment_hash);
+  return res.send({
+    paid: payerId ? true : false
+  });
+});
 router.post('/sendcoins', async (req, res) => {
   /* authorization */
   let user = await loadAuthorizedUser(req.headers.authorization);
