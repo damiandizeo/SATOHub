@@ -358,16 +358,14 @@ router.post('/payinvoice', async (req, res) => {
 });
 router.post('/invoicepaid', async (req, res) => {
   /* authorization */
-  let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res.send({
-    error: 'unable to authorize user'
-  });
-  /* params */
+  // let user = await loadAuthorizedUser(req.headers.authorization)
+  // if( !user ) return res.send({ error: 'unable to authorize user' });
 
+  /* params */
   let {
     payment_hash
   } = req.body;
-  let payerId = await user.getPayerByPaymentHash(payment_hash);
+  let payerId = await redis.get('sato_user_for_payment_hash_paid_' + paymentHash);
   return res.send({
     paid: payerId ? true : false
   });
@@ -409,12 +407,10 @@ router.post('/sendcoins', async (req, res) => {
 });
 router.post('/decodeinvoice', async (req, res) => {
   /* authorization */
-  let user = await loadAuthorizedUser(req.headers.authorization);
-  if (!user) return res.send({
-    error: 'unable to authorize user'
-  });
-  /* params */
+  // let user = await loadAuthorizedUser(req.headers.authorization)
+  // if( !user ) return res.send({ error: 'unable to authorize user' });
 
+  /* params */
   let {
     invoice
   } = req.body;
