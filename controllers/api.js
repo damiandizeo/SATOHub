@@ -525,12 +525,25 @@ router.get('/.well-known/lnurlp/:domain', async (req, res) => {
     });
   }
 
-  if (domain.includes('product_')) {
-    amount = 1000 * 1000; // sats to msats
+  if (domain.includes('product_id_')) {
+    let fetchProdRes = await fetch('https://api.bysato.com/paywall/products/fetch.php', {
+      method: 'POST',
+      body: JSON.stringify({
+        productId: domain
+      }),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    fetchProdRes = await fetchProdRes.json();
+
+    if (fetchProdRes && fetchProdRes.amount) {
+      amount = fetchProdRes.amount * 1000; // sats to msats
+    }
   }
 
   if (amount > 0) {
-    let amount = amount / 1000;
+    amount = amount / 1000;
     let preimage = user.makePreimage();
     lightningClient.addInvoice({
       value: amount,
