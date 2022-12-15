@@ -365,6 +365,7 @@ router.post('/invoicepaid', async (req, res) => {
   let {
     payment_hash
   } = req.body;
+  console.log('/invoicepaid', JSON.stringify(req.body));
   let payerId = await redis.get('sato_user_for_payment_hash_paid_' + paymentHash);
   return res.send({
     paid: payerId ? true : false
@@ -414,7 +415,7 @@ router.post('/decodeinvoice', async (req, res) => {
   let {
     invoice
   } = req.body;
-  console.log(user.getUserId(), '/decodeinvoice', JSON.stringify(req.body));
+  console.log('/decodeinvoice', JSON.stringify(req.body));
   lightningClient.decodePayReq({
     pay_req: invoice
   }, (err, decodedInvoice) => {
